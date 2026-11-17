@@ -6,6 +6,7 @@ namespace App\Livewire;
 
 use App\Models\User;
 use App\Modules\Audit\Services\AuditLogger;
+use App\Modules\Telegram\Services\TelegramAccess;
 use App\Modules\Telegram\Services\TelegramLinkService;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -113,7 +114,7 @@ final class Profile extends Component
 
         return view('livewire.profile', [
             'email' => $this->user()->email,
-            'telegramEnabled' => (string) config('services.telegram.bot_token') !== '' && (string) config('services.telegram.webhook_secret') !== '',
+            'telegramEnabled' => TelegramAccess::enabled(),
             'telegramLink' => $telegram->forUser($this->user()),
             'botUsername' => $bot,
             'telegramDeepLink' => $bot !== '' && $this->telegramCode !== null ? 'https://t.me/'.$bot.'?start='.$this->telegramCode : null,

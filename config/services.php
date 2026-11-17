@@ -41,6 +41,8 @@ return [
         'bot_username' => ltrim((string) env('TELEGRAM_BOT_USERNAME', ''), '@'),
         'webhook_secret' => (string) env('TELEGRAM_WEBHOOK_SECRET', ''),
         'link_ttl_minutes' => (int) env('TELEGRAM_LINK_TTL_MINUTES', 10),
+        // Only these Telegram user ids may use the bot (comma-separated). Empty = nobody (fail closed).
+        'allowed_user_ids' => (string) env('TELEGRAM_ALLOWED_USER_IDS', ''),
     ],
 
 ];

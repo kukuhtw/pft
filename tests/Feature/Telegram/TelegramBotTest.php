@@ -34,26 +34,32 @@ final class TelegramBotTest extends TestCase
             'services.telegram.bot_token' => '123:test-token',
             'services.telegram.webhook_secret' => self::SECRET,
             'services.telegram.bot_username' => 'pft_test_bot',
+            'services.telegram.allowed_user_ids' => '1001, 2002,3003,9999',
         ]);
         Http::fake(['api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 77]])]);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    private function say(int $chatId, string $text, string $chatType = 'private'): void
+    private function say(int $chatId, string $text, string $chatType = 'private', ?int $fromId = null): void
     {
         $this->postJson('/api/telegram/webhook', [
             'update_id' => $this->updateId++,
-            'message' => ['message_id' => 1, 'chat' => ['id' => $chatId, 'type' => $chatType], 'from' => ['id' => $chatId], 'text' => $text],
+            'message' => ['message_id' => 1, 'chat' => ['id' => $chatId, 'type' => $chatType], 'from' => ['id' => $fromId ?? $chatId], 'text' => $text],
         ], ['X-Telegram-Bot-Api-Secret-Token' => self::SECRET])->assertOk();
     }
 
-    private function tap(int $chatId, string $data): void
+    private function tap(int $chatId, string $data, ?int $fromId = null): void
     {
         $this->postJson('/api/telegram/webhook', [
             'update_id' => $this->updateId++,
-            'callback_query' => ['id' => 'cb'.$this->updateId, 'data' => $data, 'message' => ['message_id' => 77, 'chat' => ['id' => $chatId, 'type' => 'private']]],
+            'callback_query' => ['id' => 'cb'.$this->updateId, 'from' => ['id' => $fromId ?? $chatId], 'data' => $data, 'message' => ['message_id' => 77, 'chat' => ['id' => $chatId, 'type' => 'private']]],
         ], ['X-Telegram-Bot-Api-Secret-Token' => self::SECRET])->assertOk();
+    }
+
+    private function replyCount(): int
+    {
+        return collect(Http::recorded())->filter(static fn (array $pair): bool => ! str_ends_with($pair[0]->url(), '/answerCallbackQuery'))->count();
     }
 
     /** @return array<string, mixed> Last text the bot sent or edited. */
@@ -96,6 +102,51 @@ final class TelegramBotTest extends TestCase
         $this->postJson('/api/telegram/webhook', $update, ['X-Telegram-Bot-Api-Secret-Token' => ''])->assertNotFound();
 
         Http::assertNothingSent();
+    }
+
+    public function test_only_telegram_users_listed_in_the_env_allowlist_are_served(): void
+    {
+        $user = $this->provisionedUser();
+        $this->actingAs($user);
+        $code = Livewire::test(Profile::class)->call('createTelegramCode')->get('telegramCode');
+
+        // Not on the list: even a valid code links nothing, and the bot does not answer at all.
+        $this->say(5555, '/start '.$code);
+        $this->say(5555, '/saldo');
+        $this->say(5555, 'makan siang 45rb');
+        $this->assertSame(0, $this->replyCount(), 'Unlisted senders get no reply.');
+        $this->assertFalse(TelegramLink::query()->exists());
+
+        // The code was not consumed by the rejected sender, so an allowed user can still use it.
+        $this->say(1001, '/start '.$code);
+        $this->assertTrue(TelegramLink::query()->where('chat_id', 1001)->exists());
+
+        // A linked chat whose sender is removed from the list is cut off immediately.
+        $bca = $this->openAccount($user, 'BCA', 'BANK', opening: 1_000_000);
+        $this->say(1001, 'makan siang 45rb');
+        config(['services.telegram.allowed_user_ids' => '2002']);
+        $before = $this->replyCount();
+        $this->tap(1001, 'ok');
+        $this->say(1001, '/saldo');
+        $this->assertSame($before, $this->replyCount());
+        $this->assertSame(0, Transaction::query()->where('channel', 'TELEGRAM')->count());
+        $this->assertSame('1000000.00', $this->balanceOf($bca));
+
+        // Forged sender id on a callback in an allowed chat is rejected too.
+        config(['services.telegram.allowed_user_ids' => '1001']);
+        $this->tap(1001, 'ok', fromId: 6666);
+        $this->assertSame(0, Transaction::query()->where('channel', 'TELEGRAM')->count());
+    }
+
+    public function test_empty_allowlist_serves_nobody_and_profile_shows_the_bot_as_off(): void
+    {
+        config(['services.telegram.allowed_user_ids' => '']);
+        $this->say(1001, '/start ABCDEFGH');
+        $this->say(1001, '/bantuan');
+        $this->assertSame(0, $this->replyCount());
+
+        $this->actingAs($this->provisionedUser());
+        Livewire::test(Profile::class)->assertSee('Bot Telegram belum diaktifkan');
     }
 
     public function test_linking_uses_a_single_use_code_from_the_profile_page(): void

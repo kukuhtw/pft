@@ -21,6 +21,7 @@ use App\Modules\Transactions\Models\Transaction;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
@@ -60,6 +61,17 @@ final readonly class TelegramBotService
     /** @param  array<string, mixed>  $update */
     public function handle(array $update): void
     {
+        // Access control first: only Telegram users listed in TELEGRAM_ALLOWED_USER_IDS are served.
+        // Everyone else gets no reply at all (not even "not linked"), so the bot reveals nothing.
+        $senderId = $update['callback_query']['from']['id'] ?? $update['message']['from']['id'] ?? null;
+        if (! $this->isAllowedSender($senderId)) {
+            if (is_int($senderId) && RateLimiter::attempt('telegram-denied-log:'.$senderId, 1, static fn (): bool => true, 3600)) {
+                Log::notice('telegram.sender_not_allowed', ['sender' => substr(hash('sha256', (string) $senderId), 0, 12)]);
+            }
+
+            return;
+        }
+
         if (isset($update['callback_query']) && is_array($update['callback_query'])) {
             $this->handleCallback($update['callback_query']);
 
@@ -113,6 +125,16 @@ final readonly class TelegramBotService
             null => $this->handleText($chatId, $user, $text),
             default => $this->telegram->sendMessage($chatId, 'Perintah tidak dikenal. Ketik /bantuan.'),
         };
+    }
+
+    /** Fail closed: an empty allowlist means nobody may use the bot. */
+    private function isAllowedSender(mixed $senderId): bool
+    {
+        if (! is_int($senderId) && ! (is_string($senderId) && ctype_digit($senderId))) {
+            return false;
+        }
+
+        return in_array((int) $senderId, TelegramAccess::allowedUserIds(), true);
     }
 
     // ── Linking ──────────────────────────────────────────────────────────────

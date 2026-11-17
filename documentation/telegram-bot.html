@@ -58,9 +58,18 @@
 TELEGRAM_BOT_TOKEN=123456789:AA...          # dari BotFather
 TELEGRAM_BOT_USERNAME=catatuang_keluarga_bot # tanpa @
 TELEGRAM_WEBHOOK_SECRET=hasil-perintah-di-atas
-TELEGRAM_LINK_TTL_MINUTES=10                 # masa berlaku kode tautan</code></pre>
+TELEGRAM_LINK_TTL_MINUTES=10                 # masa berlaku kode tautan
+TELEGRAM_ALLOWED_USER_IDS=123456789,987654321 # ID Telegram yang boleh memakai bot</code></pre>
+      <h3>Daftar ID Telegram yang diizinkan</h3>
+      <p>Bot <strong>hanya melayani ID pengguna Telegram yang tercantum</strong> di <code>TELEGRAM_ALLOWED_USER_IDS</code>, dipisahkan koma. Pesan dari ID lain diabaikan tanpa balasan apa pun, bahkan jika pengirimnya memegang kode tautan yang sah.</p>
+      <ul>
+        <li><strong>Kosong = bot menolak semua orang.</strong> Halaman Profil akan menampilkan "Bot Telegram belum diaktifkan".</li>
+        <li>Untuk mengetahui ID Telegram, pengguna bisa mengirim pesan ke bot info ID (misalnya <code>@userinfobot</code>). ID berupa angka, bukan username.</li>
+        <li>Menghapus ID dari daftar langsung memutus akses orang itu pada pesan berikutnya, walaupun chatnya sudah terhubung. Setelah mengubah <code>.env</code> di produksi, jalankan <code>php artisan config:cache</code>.</li>
+        <li>Penolakan dicatat di log sebagai <code>telegram.sender_not_allowed</code> dengan ID yang di-hash, maksimal sekali per jam per ID.</li>
+      </ul>
       <p>Jalankan <code>php artisan migrate</code> (membuat tabel <code>telegram_links</code>) dan <code>php artisan config:cache</code> di produksi.</p>
-      <div class="note info"><p>Selama token atau secret masih kosong, bot <b>nonaktif</b>: endpoint webhook menjawab 404, dan halaman Profil menampilkan "Bot Telegram belum diaktifkan".</p></div>
+      <div class="note info"><p>Selama token, secret, atau daftar ID masih kosong, bot <b>nonaktif</b>: endpoint webhook menjawab 404, dan halaman Profil menampilkan "Bot Telegram belum diaktifkan".</p></div>
     </section>
 
     <section id="a-webhook">
@@ -89,6 +98,7 @@ php artisan telegram:webhook set --url=https://xxxx.trycloudflare.com</code></pr
       <div class="tbl"><table>
         <thead><tr><th>Kontrol</th><th>Yang diterapkan aplikasi</th></tr></thead>
         <tbody>
+          <tr><td>Daftar izin pengguna</td><td>Hanya ID Telegram di <code>TELEGRAM_ALLOWED_USER_IDS</code> yang dilayani, untuk pesan maupun tombol. Daftar kosong berarti tidak ada yang dilayani (fail-closed), dan pengirim yang ditolak tidak mendapat balasan.</td></tr>
           <tr><td>Keaslian webhook</td><td>Setiap panggilan harus membawa header <code>X-Telegram-Bot-Api-Secret-Token</code> yang cocok (dibandingkan secara <em>constant-time</em>). Tanpa itu: 403.</td></tr>
           <tr><td>Penautan akun</td><td>Kode 8 karakter, sekali pakai, berlaku 10 menit. Hanya hash-nya yang disimpan, dan kode baru membatalkan kode lama. Maksimal 5 percobaan per chat per 10 menit, dan maksimal 5 kode per pengguna per 10 menit.</td></tr>
           <tr><td>Isolasi data</td><td>Satu chat untuk satu pengguna. Chat yang belum terhubung tidak menerima data apa pun. Tombol pilihan akun diperiksa ulang terhadap akun milik pengguna itu sendiri.</td></tr>
@@ -205,6 +215,8 @@ php artisan telegram:webhook set --url=https://xxxx.trycloudflare.com</code></pr
 
     <section id="b-faq">
       <h2>B7. Tanya jawab</h2>
+      <h3>Bot sama sekali tidak membalas.</h3>
+      <p>ID Telegram Anda kemungkinan belum ada di daftar izin. Kirim ID Telegram Anda (angka, bukan username) ke pengelola aplikasi untuk ditambahkan.</p>
       <h3>Bot bilang "Chat ini belum terhubung".</h3>
       <p>Buat kode baru di Profil → Telegram, lalu kirim <code>/start KODE</code>. Kode berlaku 10 menit dan hanya bisa dipakai sekali.</p>
       <h3>Bot bilang "Draf ini sudah kedaluwarsa".</h3>

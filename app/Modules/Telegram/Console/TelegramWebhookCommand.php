@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Telegram\Console;
 
+use App\Modules\Telegram\Services\TelegramAccess;
 use App\Modules\Telegram\Services\TelegramClient;
 use Illuminate\Console\Command;
 
@@ -40,6 +41,13 @@ final class TelegramWebhookCommand extends Command
             $this->error('TELEGRAM_WEBHOOK_SECRET must be at least 32 characters of A-Z, a-z, 0-9, _ or -. Generate one with: php -r "echo bin2hex(random_bytes(32));"');
 
             return self::FAILURE;
+        }
+
+        $allowed = TelegramAccess::allowedUserIds();
+        if ($allowed === []) {
+            $this->warn('TELEGRAM_ALLOWED_USER_IDS is empty: the bot will ignore every message until you add Telegram user ids.');
+        } else {
+            $this->line('Allowed Telegram users: '.count($allowed));
         }
 
         $base = rtrim((string) ($this->option('url') ?: config('app.url')), '/');

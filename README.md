@@ -93,7 +93,7 @@ Guarantees:
 
 Users link their private chat from **Profil → Telegram** (one-time code, 10 min), then send entries like `makan siang 45rb`. The bot asks for missing accounts with buttons, shows a summary, and posts only after **✅ Simpan** (`Channel::TELEGRAM`, same `IntentPostingService` as the web). Commands: `/saldo`, `/ringkasan`, `/terakhir`, `/batal`, `/bantuan`, `/putuskan`.
 
-Setup: set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` (≥32 chars), then `php artisan telegram:webhook set` (HTTPS `APP_URL` required). Webhook: `POST /api/telegram/webhook`, verified by `X-Telegram-Bot-Api-Secret-Token`. Full guide with screenshots: [`documentation/telegram-bot.html`](documentation/telegram-bot.html). User guide for the web app: [`documentation/tutorial.html`](documentation/tutorial.html).
+Setup: set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` (≥32 chars) and `TELEGRAM_ALLOWED_USER_IDS` (comma-separated Telegram user ids; only these are served, empty = nobody), then `php artisan telegram:webhook set` (HTTPS `APP_URL` required). Webhook: `POST /api/telegram/webhook`, verified by `X-Telegram-Bot-Api-Secret-Token`. Full guide with screenshots: [`documentation/telegram-bot.html`](documentation/telegram-bot.html). User guide for the web app: [`documentation/tutorial.html`](documentation/tutorial.html).
 
 ## API
 
