@@ -46,7 +46,7 @@ All three app roles use one image (`Dockerfile`), and `app-storage` is shared be
    - Generate `APP_KEY`, `DB_PASSWORD` and `MYSQL_ROOT_PASSWORD` freshly. Never reuse local or XAMPP credentials.
    - Dokploy writes these to `.env` beside the compose file. Each service loads it via `env_file: .env`.
    - **Required, or the deploy stops at once:** `MYSQL_ROOT_PASSWORD` and `DB_PASSWORD` (compose fails with "required variable … is missing a value"), plus `APP_KEY` (the web container exits).
-   - Dashboard login: set `DASHBOARD_ADMIN_EMAIL` and `DASHBOARD_ADMIN_PASSWORD` (a bcrypt hash from `php artisan dashboard:user --hash`, inside single quotes). The web container syncs it on every start, so no shell is needed. Keep `AUTH_REGISTRATION_ENABLED=false`.
+   - Dashboard login: set `DASHBOARD_ADMIN_EMAIL` and `DASHBOARD_ADMIN_PASSWORD` (plain password in single quotes, ≥12 chars with upper/lower case and a digit; a bcrypt hash from `dashboard:user --hash` also works). The web container syncs it on every start, so no shell is needed. Keep `AUTH_REGISTRATION_ENABLED=false`.
 4. **Domains** tab → *Add Domain*:
    - Service: `web` · Host: `pft.example.com` · Container port: `8080` · Path `/`
    - HTTPS: **on**, certificate provider: **Let's Encrypt**

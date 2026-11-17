@@ -126,7 +126,7 @@ See [`.env.example`](.env.example). App-specific variables:
 | `IDEMPOTENCY_TTL_HOURS` | `72` | How long idempotency keys are honoured |
 | `AUDIT_RETENTION_DAYS` | `2555` | Audit-log retention (0 = forever) |
 | `SANCTUM_TOKEN_EXPIRATION` | `43200` | API token lifetime in minutes |
-| `DASHBOARD_ADMIN_NAME` / `DASHBOARD_ADMIN_EMAIL` / `DASHBOARD_ADMIN_PASSWORD` | — | Dashboard login, synced to the DB by `php artisan dashboard:user`. Store a bcrypt hash (`dashboard:user --hash`) in single quotes |
+| `DASHBOARD_ADMIN_NAME` / `DASHBOARD_ADMIN_EMAIL` / `DASHBOARD_ADMIN_PASSWORD` | — | Dashboard login, synced to the DB (bcrypt) by `php artisan dashboard:user` and on every web-container start. Plain password in single quotes; a bcrypt hash (`dashboard:user --hash`) also works |
 | `AUTH_REGISTRATION_ENABLED` | `true` (`.env.example`: `false`) | Self sign-up on `/register` and the API |
 | `AUTH_ALLOWED_EMAILS` | empty (no limit) | Comma-separated emails allowed to sign in/register; removing one ends its sessions and tokens on the next request |
 

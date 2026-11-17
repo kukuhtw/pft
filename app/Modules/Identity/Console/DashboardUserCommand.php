@@ -103,7 +103,7 @@ final class DashboardUserCommand extends Command
     private function finish(bool $isHash): int
     {
         if (! $isHash) {
-            $this->warn('DASHBOARD_ADMIN_PASSWORD is plain text. Replace it with a hash (php artisan dashboard:user --hash) or remove it from .env now.');
+            $this->warn('DASHBOARD_ADMIN_PASSWORD is plain text in .env: keep that file readable only by the app (chmod 600) and out of Git/backups shared with others.');
         }
 
         return self::SUCCESS;
