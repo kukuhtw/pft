@@ -51,6 +51,36 @@ final class AccountEditTest extends TestCase
         $this->assertTrue(AuditLog::query()->where('event', 'account.updated')->exists());
     }
 
+    public function test_edit_bank_and_debt_party(): void
+    {
+        $user = $this->provisionedUser();
+        $bank = $this->openAccount($user, 'Tabungan', institution: 'BCA', opening: 100000);
+        $loan = $this->openAccount($user, 'Pinjaman', type: 'LOAN', opening: 2000000);
+        $this->actingAs($user);
+
+        Livewire::test(Accounts::class)->call('edit', $bank->id)
+            ->assertSet('editInstitutionCode', 'BCA')
+            ->set('editInstitutionCode', 'BNI')->set('editCounterparty', 'Pak Budi') // ignored: not a debt
+            ->call('saveEdit')->assertHasNoErrors();
+        $bank->refresh()->load('institution');
+        $this->assertSame('BNI', $bank->institution?->code);
+        $this->assertNull($bank->counterparty_id);
+
+        Livewire::test(Accounts::class)->call('edit', $bank->id)
+            ->set('editInstitutionCode', 'NOPE')->call('saveEdit')->assertHasErrors('editInstitutionCode');
+
+        Livewire::test(Accounts::class)->call('edit', $loan->id)
+            ->set('editCounterparty', 'Pak Budi')->call('saveEdit')->assertHasNoErrors();
+        $this->assertSame('Pak Budi', $loan->fresh()->counterparty?->name);
+
+        Livewire::test(Accounts::class)->call('edit', $loan->id)
+            ->assertSet('editCounterparty', 'Pak Budi')
+            ->set('editCounterparty', '')->set('editInstitutionCode', '')->call('saveEdit')->assertHasNoErrors();
+        $this->assertNull($loan->fresh()->counterparty_id);
+        $this->assertSame('2000000.00', $this->balanceOf($loan));
+        $this->assertLedgerIntact($user);
+    }
+
     public function test_correct_opening_balance_up_and_down_for_an_asset(): void
     {
         $user = $this->provisionedUser();
