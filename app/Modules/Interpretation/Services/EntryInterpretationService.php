@@ -37,7 +37,7 @@ final class EntryInterpretationService
             ? array_map(static fn (FinancialAccount $a): array => ['id' => $a->id, 'name' => $a->name, 'balance' => $a->balance()], $this->debts->debtAccountsOf($user, $known))
             : [];
 
-        $category = $result->categoryCode !== null && $intent?->isIncome()
+        $category = $result->categoryCode !== null && ($intent?->isIncome() || $intent === TransactionIntent::EXPENSE)
             ? TransactionCategory::query()->where('user_id', $user->id)->where('code', $result->categoryCode)->where('is_active', true)->first()
             : null;
 

@@ -3,6 +3,7 @@
 use App\Modules\Ledger\Console\VerifyLedgerCommand;
 use App\Modules\Shared\Console\PruneFinanceDataCommand;
 use App\Modules\Shared\Exceptions\DomainException;
+use App\Modules\Telegram\Console\TelegramWebhookCommand;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([
         VerifyLedgerCommand::class,
         PruneFinanceDataCommand::class,
+        TelegramWebhookCommand::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         // Behind Dokploy's Traefik (or any reverse proxy): trust X-Forwarded-* only from these

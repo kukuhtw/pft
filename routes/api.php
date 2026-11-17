@@ -8,8 +8,12 @@ use App\Modules\Categories\Http\Controllers\CategoryController;
 use App\Modules\Counterparties\Http\Controllers\CounterpartyController;
 use App\Modules\Identity\Http\Controllers\AuthController;
 use App\Modules\Reporting\Http\Controllers\ReportController;
+use App\Modules\Telegram\Http\Controllers\TelegramWebhookController;
 use App\Modules\Transactions\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
+
+// Telegram bot (authenticated by X-Telegram-Bot-Api-Secret-Token, not by user tokens).
+Route::post('telegram/webhook', TelegramWebhookController::class)->middleware('throttle:telegram')->name('telegram.webhook');
 
 Route::prefix('v1')->group(function (): void {
     Route::middleware('throttle:auth')->group(function (): void {

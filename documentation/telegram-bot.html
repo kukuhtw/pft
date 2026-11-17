@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panduan Bot Telegram</title>
+<link rel="stylesheet" href="doc.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <h1>Panduan Bot Telegram</h1>
+    <p>Catat transaksi cukup dengan chat Telegram, misalnya <span class="chat">makan siang 45rb</span>. Bot menanyakan akunnya, menampilkan ringkasan, dan baru mencatat setelah Anda menekan ✅ Simpan. Bagian A untuk pengelola aplikasi; bagian B untuk pengguna.</p>
+  </header>
+
+  <nav class="toc" aria-label="Daftar isi">
+    <p>Bagian A · Pengelola</p>
+    <ol>
+      <li><a href="#a-bot">Buat bot di BotFather</a></li>
+      <li><a href="#a-env">Isi konfigurasi .env</a></li>
+      <li><a href="#a-webhook">Daftarkan webhook</a></li>
+      <li><a href="#a-lokal">Uji di komputer lokal</a></li>
+      <li><a href="#a-keamanan">Keamanan &amp; privasi</a></li>
+    </ol>
+    <p style="margin-top:16px">Bagian B · Pengguna</p>
+    <ol>
+      <li><a href="#b-hubungkan">Hubungkan akun</a></li>
+      <li><a href="#b-catat">Mencatat transaksi</a></li>
+      <li><a href="#b-pinjaman">Pinjaman &amp; hutang</a></li>
+      <li><a href="#b-perintah">Perintah bot</a></li>
+      <li><a href="#b-cek">Cek di dashboard</a></li>
+      <li><a href="#b-putus">Memutus Telegram</a></li>
+      <li><a href="#b-faq">Tanya jawab</a></li>
+    </ol>
+    <p style="margin-top:16px"><a href="tutorial.html">← Panduan aplikasi web</a></p>
+  </nav>
+
+  <main>
+    <span class="part">Bagian A · Untuk pengelola aplikasi</span>
+
+    <section id="a-bot">
+      <h2>A1. Buat bot di BotFather</h2>
+      <ol class="steps">
+        <li>Di Telegram, buka akun resmi <strong>@BotFather</strong> (bertanda centang biru) dan kirim <code>/newbot</code>.</li>
+        <li>Isi nama tampilan bot, lalu username yang berakhiran <code>bot</code>, misalnya <code>catatuang_keluarga_bot</code>.</li>
+        <li>BotFather membalas dengan <strong>token</strong> seperti <code>123456789:AA…</code>. Token ini adalah kunci penuh bot, jadi perlakukan seperti kata sandi.</li>
+        <li>Agar bot tidak bisa dimasukkan ke grup, kirim <code>/setjoingroups</code>, pilih bot Anda, lalu pilih <strong>Disable</strong>. Aplikasi memang hanya melayani chat pribadi.</li>
+      </ol>
+      <div class="note warn"><p><b>Token bocor?</b> Kirim <code>/revoke</code> ke BotFather untuk membuat token baru, ganti nilainya di <code>.env</code>, lalu jalankan ulang langkah A3.</p></div>
+    </section>
+
+    <section id="a-env">
+      <h2>A2. Isi konfigurasi <code>.env</code></h2>
+      <p>Buat secret webhook acak, minimal 32 karakter:</p>
+<pre><code>php -r "echo bin2hex(random_bytes(32));"</code></pre>
+      <p>Lalu isi di <code>.env</code> server (jangan di <code>.env.example</code> atau di Git):</p>
+<pre><code>APP_URL=https://keuangan.domain-anda.id
+TELEGRAM_BOT_TOKEN=123456789:AA...          # dari BotFather
+TELEGRAM_BOT_USERNAME=catatuang_keluarga_bot # tanpa @
+TELEGRAM_WEBHOOK_SECRET=hasil-perintah-di-atas
+TELEGRAM_LINK_TTL_MINUTES=10                 # masa berlaku kode tautan</code></pre>
+      <p>Jalankan <code>php artisan migrate</code> (membuat tabel <code>telegram_links</code>) dan <code>php artisan config:cache</code> di produksi.</p>
+      <div class="note info"><p>Selama token atau secret masih kosong, bot <b>nonaktif</b>: endpoint webhook menjawab 404, dan halaman Profil menampilkan "Bot Telegram belum diaktifkan".</p></div>
+    </section>
+
+    <section id="a-webhook">
+      <h2>A3. Daftarkan webhook</h2>
+      <p>Telegram mengirim setiap pesan ke <code>https://domain-anda/api/telegram/webhook</code>. Daftarkan alamat itu dengan:</p>
+<pre><code>php artisan telegram:webhook set                 # memakai APP_URL
+php artisan telegram:webhook set --url=https://keuangan.domain-anda.id
+php artisan telegram:webhook info                # cek status &amp; error terakhir
+php artisan telegram:webhook delete              # matikan webhook</code></pre>
+      <p>Perintah <code>set</code> juga mendaftarkan menu perintah bot (<code>/saldo</code>, <code>/ringkasan</code>, dan lainnya), hanya menerima jenis update <em>message</em> dan <em>callback_query</em>, serta membuang update lama yang tertunda.</p>
+      <div class="note warn"><p><b>Wajib HTTPS.</b> Telegram tidak mengirim ke alamat <code>http://</code>. Perintah akan menolak jika URL tidak diawali <code>https://</code> atau secret kurang dari 32 karakter.</p></div>
+    </section>
+
+    <section id="a-lokal">
+      <h2>A4. Uji di komputer lokal</h2>
+      <p><code>localhost</code> tidak bisa dijangkau Telegram, jadi gunakan tunnel HTTPS (misalnya Cloudflare Tunnel atau ngrok) yang meneruskan ke <code>php artisan serve</code>:</p>
+<pre><code>php artisan serve                       # http://127.0.0.1:8000
+cloudflared tunnel --url http://127.0.0.1:8000   # memberi https://xxxx.trycloudflare.com
+php artisan telegram:webhook set --url=https://xxxx.trycloudflare.com</code></pre>
+      <p>Pakai <strong>bot terpisah</strong> untuk uji coba dan data contoh. Jangan gunakan bot produksi atau data keuangan asli di tunnel sementara. Setelah selesai, jalankan <code>php artisan telegram:webhook delete</code>.</p>
+      <p>Tes otomatis tidak memerlukan Telegram: <code>php artisan test --filter=TelegramBotTest</code>.</p>
+    </section>
+
+    <section id="a-keamanan">
+      <h2>A5. Keamanan &amp; privasi (ISO/IEC 27001:2022, UU PDP)</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>Kontrol</th><th>Yang diterapkan aplikasi</th></tr></thead>
+        <tbody>
+          <tr><td>Keaslian webhook</td><td>Setiap panggilan harus membawa header <code>X-Telegram-Bot-Api-Secret-Token</code> yang cocok (dibandingkan secara <em>constant-time</em>). Tanpa itu: 403.</td></tr>
+          <tr><td>Penautan akun</td><td>Kode 8 karakter, sekali pakai, berlaku 10 menit. Hanya hash-nya yang disimpan, dan kode baru membatalkan kode lama. Maksimal 5 percobaan per chat per 10 menit, dan maksimal 5 kode per pengguna per 10 menit.</td></tr>
+          <tr><td>Isolasi data</td><td>Satu chat untuk satu pengguna. Chat yang belum terhubung tidak menerima data apa pun. Tombol pilihan akun diperiksa ulang terhadap akun milik pengguna itu sendiri.</td></tr>
+          <tr><td>Tidak ada pencatatan tanpa konfirmasi</td><td>Transaksi hanya dicatat setelah ✅ Simpan. Kunci idempotensi per draf mencegah pencatatan ganda.</td></tr>
+          <tr><td>Minimisasi data</td><td>Yang disimpan hanya <code>chat_id</code>, tanpa username, nomor HP, atau foto profil. Draf disimpan di cache selama 15 menit. Teks pesan tidak dicatat di log.</td></tr>
+          <tr><td>Pencabutan akses</td><td>Ganti kata sandi otomatis memutus Telegram. Pengguna juga bisa memutus lewat <code>/putuskan</code> atau dari web.</td></tr>
+          <tr><td>Audit</td><td><code>telegram.link_code_issued</code>, <code>telegram.linked</code>, <code>telegram.unlinked</code>, dan setiap transaksi dengan channel <code>TELEGRAM</code>.</td></tr>
+          <tr><td>Hak akses data</td><td>Status tautan Telegram ikut dalam "Unduh data saya".</td></tr>
+        </tbody>
+      </table></div>
+      <div class="note warn"><p><b>Perlu tindakan pengelola, belum sesuai bila diabaikan:</b></p>
+        <p>1. <b>Telegram adalah pihak ketiga</b> dan servernya berada di luar Indonesia. Isi pesan (nominal, nama pihak, saldo pada <code>/saldo</code>) melewati server Telegram. Cantumkan hal ini di kebijakan privasi, minta persetujuan pengguna, dan catat sebagai transfer data pribadi ke luar negeri menurut UU PDP.</p>
+        <p>2. Simpan token bot dan secret di <code>.env</code> atau secret manager saja. Jangan di Git, chat, atau tiket.</p>
+        <p>3. Produksi wajib HTTPS dan <code>APP_DEBUG=false</code>.</p></div>
+    </section>
+
+    <span class="part">Bagian B · Untuk pengguna</span>
+
+    <section id="b-hubungkan">
+      <h2>B1. Hubungkan akun Anda</h2>
+      <ol class="steps">
+        <li>Masuk ke aplikasi web, lalu klik nama Anda di kanan atas untuk membuka <strong>Profil</strong>. Di bagian <strong>Telegram</strong>, klik <span class="ui">Buat kode</span>.</li>
+        <li>Muncul kode 8 karakter yang berlaku 10 menit. Klik <span class="ui">Buka di Telegram</span>, atau kirim <code>/start KODE</code> ke bot secara manual.</li>
+        <li>Bot membalas <strong>✅ Terhubung dengan akun …</strong> beserta contoh cara pakai. Status di Profil berubah menjadi <strong>✓ Terhubung</strong>.</li>
+      </ol>
+      <figure><img src="images/profile-code.png" alt="Halaman Profil dengan bagian Telegram yang menampilkan kode tautan, tombol Buka di Telegram, dan peringatan privasi" loading="lazy"><figcaption>Profil → Telegram setelah menekan "Buat kode". Kode hanya bisa dipakai sekali.</figcaption></figure>
+      <div class="pair">
+        <figure class="phone"><img src="images/chat-link.png" alt="Chat: pengguna mengirim /start dengan kode, bot membalas Terhubung dan menampilkan daftar perintah" loading="lazy"><figcaption>Bot mengonfirmasi akun yang terhubung.</figcaption></figure>
+        <div>
+          <div class="note warn"><p><b>Jaga kode Anda.</b> Siapa pun yang memakai kode itu lebih dulu akan terhubung ke akun Anda. Jangan bagikan atau tangkap layar kodenya. Jika terlanjur bocor, klik <span class="ui">Buat kode baru</span>: kode lama langsung tidak berlaku.</p></div>
+          <div class="note info"><p>Bot hanya bekerja di <b>chat pribadi</b>. Di grup, bot menolak demi privasi.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="b-catat">
+      <h2>B2. Mencatat transaksi</h2>
+      <ol class="steps">
+        <li>Kirim kalimat biasa, misalnya <span class="chat">makan siang 45rb</span>.</li>
+        <li>Jika Anda punya lebih dari satu akun, bot bertanya <strong>"Dibayar dari akun mana?"</strong>. Tekan salah satu tombol.</li>
+        <li>Bot menampilkan <strong>Periksa sebelum disimpan</strong>: jenis, nominal, tanggal, akun, dan kategori.</li>
+        <li>Tekan <span class="ui">✅ Simpan</span>. Jika jenisnya salah, tekan <span class="ui">🔁 Ganti jenis</span>. Untuk membatalkan, tekan <span class="ui">❌ Batal</span>.</li>
+      </ol>
+      <div class="pair">
+        <figure class="phone"><img src="images/chat-expense.png" alt="Chat: makan siang 45rb, bot menanyakan akun, menampilkan ringkasan dengan kategori Makanan dan Minuman, lalu Tersimpan" loading="lazy"><figcaption>"makan siang" otomatis masuk kategori Makanan &amp; Minuman, jadi ikut menghitung budget makan.</figcaption></figure>
+        <div>
+          <h3>Contoh kalimat</h3>
+          <div class="tbl"><table>
+            <thead><tr><th>Kirim</th><th>Dicatat sebagai</th></tr></thead>
+            <tbody>
+              <tr><td><span class="chat">gaji November 10jt</span></td><td>Pemasukan gaji</td></tr>
+              <tr><td><span class="chat">hasil jualan kue 500rb</span></td><td>Pemasukan dari aktivitas</td></tr>
+              <tr><td><span class="chat">parkir 5rb</span></td><td>Pengeluaran · Transportasi</td></tr>
+              <tr><td><span class="chat">beli token listrik 200rb</span></td><td>Pengeluaran · Listrik</td></tr>
+              <tr><td><span class="chat">transfer BCA ke BNI 2jt</span></td><td>Transfer antar akun sendiri</td></tr>
+            </tbody>
+          </table></div>
+          <p>Jika nominalnya lupa ditulis, bot akan bertanya <em>"nominalnya berapa?"</em>. Balas saja, misalnya <code>350rb</code>.</p>
+          <p>Tanggal transaksi selalu <strong>hari ini</strong>. Untuk tanggal lain, catat lewat web.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="b-pinjaman">
+      <h2>B3. Pinjaman &amp; pembayaran hutang</h2>
+      <div class="pair">
+        <figure class="phone"><img src="images/chat-loan.png" alt="Chat: pinjam dari Pak Budi 1jt, bot menanyakan akun tujuan lalu menampilkan ringkasan dengan hutang Pinjaman Pak Budi" loading="lazy"><figcaption>Pinjaman otomatis dicatat ke hutang atas nama pihaknya.</figcaption></figure>
+        <div>
+          <p><span class="chat">pinjam dari Pak Budi 1jt</span> menambah kas <strong>dan</strong> hutang ke Pak Budi. Pinjaman ini bukan pendapatan. Jika belum ada hutang ke Pak Budi, aplikasi membuat akun "Pinjaman Pak Budi" secara otomatis.</p>
+          <p><span class="chat">bayar hutang ke Budi 500rb</span> mengurangi hutang tersebut. Jika Anda punya beberapa hutang ke pihak yang sama, bot menanyakan <strong>"Hutang mana yang dibayar?"</strong>.</p>
+          <p>Untuk membayar tagihan kartu kredit, kirim <span class="chat">bayar kartu kredit 2jt</span>, lalu pilih kartunya.</p>
+          <div class="note warn"><p>Uang yang Anda <b>pinjamkan</b> ke orang lain (piutang) belum didukung. Bot akan memberi tahu dan tidak mencatat apa pun.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="b-perintah">
+      <h2>B4. Perintah bot</h2>
+      <div class="pair">
+        <div class="tbl"><table>
+          <thead><tr><th>Perintah</th><th>Fungsi</th></tr></thead>
+          <tbody>
+            <tr><td><code>/saldo</code></td><td>Saldo semua akun dan kekayaan bersih</td></tr>
+            <tr><td><code>/ringkasan</code></td><td>Pemasukan, pengeluaran, dan budget yang hampir habis bulan ini</td></tr>
+            <tr><td><code>/terakhir</code></td><td>5 transaksi terakhir</td></tr>
+            <tr><td><code>/batal</code></td><td>Membatalkan draf yang sedang berjalan</td></tr>
+            <tr><td><code>/bantuan</code></td><td>Cara pakai dan contoh kalimat</td></tr>
+            <tr><td><code>/putuskan</code></td><td>Memutus Telegram dari akun Anda</td></tr>
+          </tbody>
+        </table></div>
+        <figure class="phone"><img src="images/chat-reports.png" alt="Chat: /ringkasan menampilkan pemasukan, pengeluaran, dan budget yang perlu perhatian; /saldo menampilkan saldo per akun" loading="lazy"><figcaption>/ringkasan dan /saldo.</figcaption></figure>
+      </div>
+      <div class="note warn"><p><b>Privasi:</b> balasan <code>/saldo</code> dan <code>/ringkasan</code> berisi data keuangan Anda dan tersimpan di riwayat chat Telegram. Aktifkan kunci layar atau Passcode Lock di Telegram, dan hapus chat jika ponsel dipakai bersama.</p></div>
+    </section>
+
+    <section id="b-cek">
+      <h2>B5. Cek hasilnya di dashboard</h2>
+      <p>Transaksi dari Telegram langsung muncul di web: di Dashboard (ringkasan, budget, transaksi terakhir) dan di menu <span class="ui">Transaksi</span>.</p>
+      <figure><img src="images/dashboard.png" alt="Dashboard web: ringkasan pemasukan dan pengeluaran, peringatan budget, kotak Catat transaksi, uang masuk menurut sumber, hutang per pihak, akun, dan transaksi terakhir" loading="lazy"><figcaption>Dashboard: angka di atas, budget yang perlu perhatian, lalu hutang per pihak dan transaksi terakhir.</figcaption></figure>
+      <figure><img src="images/transactions.png" alt="Halaman Transaksi dengan filter jenis, pihak, dan tanggal, berisi daftar transaksi termasuk yang dicatat lewat Telegram" loading="lazy"><figcaption>Menu Transaksi. Jika salah catat, tekan "Batalkan" di sini. Pembatalan tidak bisa dilakukan dari Telegram.</figcaption></figure>
+      <figure><img src="images/accounts.png" alt="Halaman Akun: daftar rekening, dompet, kartu kredit, dan pinjaman beserta saldonya, serta formulir Tambah akun" loading="lazy"><figcaption>Akun yang muncul sebagai tombol di bot berasal dari menu Akun. Buat akun di sini terlebih dahulu.</figcaption></figure>
+    </section>
+
+    <section id="b-putus">
+      <h2>B6. Memutus Telegram</h2>
+      <ul>
+        <li>Dari Telegram: kirim <code>/putuskan</code>.</li>
+        <li>Dari web: buka Profil → Telegram → <span class="ui">Putuskan Telegram</span>.</li>
+        <li>Otomatis: setiap kali Anda <strong>mengganti kata sandi</strong>.</li>
+      </ul>
+      <figure><img src="images/profile-linked.png" alt="Halaman Profil dengan status Telegram Terhubung dan tombol Putuskan Telegram" loading="lazy"><figcaption>Status terhubung beserta tombol untuk memutus.</figcaption></figure>
+      <div class="note info"><p>Kehilangan ponsel? Segera <b>ganti kata sandi</b> dari web. Telegram, semua sesi login lain, dan token API akan langsung dicabut.</p></div>
+    </section>
+
+    <section id="b-faq">
+      <h2>B7. Tanya jawab</h2>
+      <h3>Bot bilang "Chat ini belum terhubung".</h3>
+      <p>Buat kode baru di Profil → Telegram, lalu kirim <code>/start KODE</code>. Kode berlaku 10 menit dan hanya bisa dipakai sekali.</p>
+      <h3>Bot bilang "Draf ini sudah kedaluwarsa".</h3>
+      <p>Draf berlaku 15 menit. Kirim ulang kalimat transaksinya.</p>
+      <h3>Saya menekan ✅ Simpan dua kali.</h3>
+      <p>Transaksi tetap hanya tercatat sekali.</p>
+      <h3>Bisakah satu chat dipakai dua akun, atau satu akun dipakai dua chat?</h3>
+      <p>Tidak. Satu akun hanya terhubung ke satu chat. Menautkan chat baru otomatis memindahkan tautannya.</p>
+      <h3>Kategori yang dipilih bot salah.</h3>
+      <p>Tekan ❌ Batal lalu catat lewat web, tempat kategori bisa dipilih bebas. Jika sudah terlanjur tersimpan, batalkan di menu Transaksi lalu catat ulang.</p>
+      <footer>Semua screenshot memakai data contoh fiktif ("Ani Contoh", "Pak Budi", "PT Maju Jaya"). Gambar percakapan adalah ilustrasi yang disusun dari balasan asli bot aplikasi.</footer>
+    </section>
+  </main>
+</div>
+<button class="theme" type="button" id="theme" aria-label="Ganti tema terang/gelap">◐ Tema</button>
+<script>
+(function () {
+  var root = document.documentElement, key = 'pft-doc-theme';
+  try { var saved = localStorage.getItem(key); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+  document.getElementById('theme').addEventListener('click', function () {
+    var dark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var next = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem(key, next); } catch (e) {}
+  });
+})();
+</script>
+</body>
+</html>

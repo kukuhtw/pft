@@ -5,20 +5,18 @@ declare(strict_types=1);
 namespace App\Livewire;
 
 use App\Models\User;
-use App\Modules\Accounts\Enums\AccountStatus;
 use App\Modules\Accounts\Models\FinancialAccount;
 use App\Modules\Categories\Enums\CategoryKind;
 use App\Modules\Categories\Models\TransactionCategory;
-use App\Modules\Debts\Services\DebtService;
 use App\Modules\Interpretation\Enums\TransactionIntent;
 use App\Modules\Interpretation\Services\EntryInterpretationService;
+use App\Modules\Interpretation\Services\IntentPostingService;
 use App\Modules\Shared\Domain\Money;
 use App\Modules\Shared\Exceptions\DomainException;
 use App\Modules\Shared\Support\MoneyInput;
 use App\Modules\Transactions\Data\TransactionInput;
 use App\Modules\Transactions\Enums\Channel;
 use App\Modules\Transactions\Models\Transaction;
-use App\Modules\Transactions\Services\TransactionService;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
@@ -35,14 +33,6 @@ use Livewire\Component;
  */
 final class QuickEntry extends Component
 {
-    /** Default category per intent when neither the user nor the text chose one. */
-    private const array DEFAULT_CATEGORY = [
-        'SALARY_INCOME' => 'SALARY',
-        'ACTIVITY_INCOME' => 'BUSINESS',
-        'OTHER_INCOME' => 'OTHER_INCOME',
-        'EXPENSE' => 'OTHER_EXPENSE',
-    ];
-
     public string $text = '';
 
     public string $intent = '';
@@ -111,7 +101,7 @@ final class QuickEntry extends Component
         $this->applyIntentDefaults();
     }
 
-    public function save(TransactionService $transactions, DebtService $debts): void
+    public function save(IntentPostingService $posting): void
     {
         $intent = $this->validateForm();
         $money = MoneyInput::parse($this->amount, (string) config('finance.default_currency'));
@@ -131,20 +121,13 @@ final class QuickEntry extends Component
             description: $this->blankToNull($this->description),
             channel: Channel::WEB,
             idempotencyKey: $this->idempotencyKey,
-            counterpartyName: $this->blankToNull($this->counterparty),
+            counterpartyName: $intent === TransactionIntent::INTERNAL_TRANSFER ? null : $this->blankToNull($this->counterparty),
             activity: $intent === TransactionIntent::ACTIVITY_INCOME ? $this->blankToNull($this->activity) : null,
             debtAccountId: $this->blankToNull($this->debtAccountId),
         );
 
         try {
-            $transaction = match ($intent) {
-                TransactionIntent::SALARY_INCOME, TransactionIntent::ACTIVITY_INCOME, TransactionIntent::OTHER_INCOME => $transactions->recordIncome($this->user(), $input),
-                TransactionIntent::LOAN_RECEIVED => $debts->loanReceived($this->user(), $input),
-                TransactionIntent::DEBT_REPAYMENT => $debts->debtPayment($this->user(), $input),
-                TransactionIntent::EXPENSE => $transactions->recordExpense($this->user(), $input),
-                TransactionIntent::INTERNAL_TRANSFER => $transactions->recordTransfer($this->user(), $input),
-                TransactionIntent::OPENING_BALANCE => throw new \LogicException('Not selectable.'),
-            };
+            $transaction = $posting->post($this->user(), $intent, $input);
         } catch (DomainException $e) {
             $this->addError('save', $e->getMessage());
 
@@ -194,7 +177,7 @@ final class QuickEntry extends Component
     /** @return list<TransactionIntent> */
     public function selectableIntents(): array
     {
-        return array_values(array_filter(TransactionIntent::cases(), static fn (TransactionIntent $i): bool => $i !== TransactionIntent::OPENING_BALANCE));
+        return IntentPostingService::selectableIntents();
     }
 
     public function render(): View
@@ -233,8 +216,8 @@ final class QuickEntry extends Component
         $intent = TransactionIntent::tryFrom($this->intent);
         unset($this->categories);
 
-        if ($intent !== null && isset(self::DEFAULT_CATEGORY[$intent->value]) && $this->categoryId === '') {
-            $this->categoryId = (string) $this->categories->firstWhere('code', self::DEFAULT_CATEGORY[$intent->value])?->id;
+        if ($intent !== null && isset(IntentPostingService::DEFAULT_CATEGORY[$intent->value]) && $this->categoryId === '') {
+            $this->categoryId = (string) $this->categories->firstWhere('code', IntentPostingService::DEFAULT_CATEGORY[$intent->value])?->id;
         }
 
         $firstAsset = (string) $this->assetAccounts->first()?->id;
@@ -251,29 +234,23 @@ final class QuickEntry extends Component
 
     private function needsSource(?TransactionIntent $i): bool
     {
-        return in_array($i, [TransactionIntent::EXPENSE, TransactionIntent::DEBT_REPAYMENT, TransactionIntent::INTERNAL_TRANSFER], true);
+        return IntentPostingService::needsSource($i);
     }
 
     private function needsDestination(?TransactionIntent $i): bool
     {
-        return $i !== null && ($i->isIncome() || in_array($i, [TransactionIntent::LOAN_RECEIVED, TransactionIntent::INTERNAL_TRANSFER], true));
+        return IntentPostingService::needsDestination($i);
     }
 
     private function needsParty(?TransactionIntent $i): bool
     {
-        return in_array($i, [TransactionIntent::LOAN_RECEIVED, TransactionIntent::DEBT_REPAYMENT], true);
+        return IntentPostingService::needsParty($i);
     }
 
     /** @return Collection<int, FinancialAccount> */
     private function accounts(bool $liability): Collection
     {
-        return FinancialAccount::query()
-            ->with(['ledgerAccount', 'counterparty'])
-            ->where('user_id', $this->user()->id)
-            ->where('status', AccountStatus::ACTIVE)
-            ->whereHas('ledgerAccount', static fn ($q) => $q->where('class', $liability ? 'LIABILITY' : 'ASSET'))
-            ->orderBy('name')
-            ->get();
+        return app(IntentPostingService::class)->accounts($this->user(), $liability);
     }
 
     private function resetForm(bool $keepText = false): void

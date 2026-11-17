@@ -12,6 +12,7 @@ use App\Modules\Budgets\Models\Budget;
 use App\Modules\Categories\Models\TransactionCategory;
 use App\Modules\Counterparties\Models\Counterparty;
 use App\Modules\Shared\Domain\Money;
+use App\Modules\Telegram\Models\TelegramLink;
 use App\Modules\Transactions\Models\Transaction;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -99,6 +100,9 @@ final class ExportController extends Controller
             ]),
             'categories' => TransactionCategory::query()->where('user_id', $user->id)->get(['id', 'code', 'name', 'kind', 'is_active']),
             'counterparties' => Counterparty::query()->where('user_id', $user->id)->get(['id', 'name', 'kind', 'aliases']),
+            'telegram' => TelegramLink::query()->where('user_id', $user->id)->get()->map(static fn (TelegramLink $l): array => [
+                'chat_id' => $l->chat_id, 'linked_at' => $l->linked_at->toIso8601String(), 'last_used_at' => $l->last_used_at?->toIso8601String(),
+            ])->first(),
             'budgets' => Budget::query()->with('category:id,name')->where('user_id', $user->id)->get()->map(static fn (Budget $b): array => [
                 'period' => $b->period, 'category' => $b->category->name, 'amount' => $b->money()->amount, 'currency' => $b->currency_code,
             ]),

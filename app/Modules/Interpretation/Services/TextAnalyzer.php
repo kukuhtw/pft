@@ -45,6 +45,8 @@ final class TextAnalyzer
         ['/\b(?:pinjam|pinjem|minjam|minjem|meminjam|ngutang|berhutang|berutang|hutang|utang|pinjaman|pinjol|dipinjami|dipinjamin|dipinjemin|kasbon|pencairan\s+(?:pinjaman|kta|kredit|kpr)|borrow(?:ed)?|loan)\b/iu', TransactionIntent::LOAN_RECEIVED, null],
 
         // --- Moving money between own accounts. ---
+        // "transfer BCA ke BNI", "tf dari gopay ke bca": a bank/wallet on both sides (a person on either side is not internal).
+        ['/\b(?:transfer|tf|trf|pindah(?:in)?)\s+(?:(?:uang|dana|saldo|duit)\s+)?(?:dari\s+)?(?:'.self::OWN_ACCOUNT_WORDS.')\s+ke\s+(?:'.self::OWN_ACCOUNT_WORDS.')\b/iu', TransactionIntent::INTERNAL_TRANSFER, null],
         ['/\b(?:tarik\s+(?:tunai|cash)|setor\s+tunai|ambil\s+(?:uang|duit)\s+(?:di\s+)?atm|pindah(?:in)?\s+(?:dana|saldo|uang|duit)|top\s*up\s+(?:gopay|ovo|dana|shopeepay|e-?wallet)|ke\s+rekening\s+sendiri|antar\s+rekening)\b/iu', TransactionIntent::INTERNAL_TRANSFER, null],
 
         // --- Spending (before salary/activity: "bayar gaji karyawan", "beli bahan jualan"). ---
@@ -62,6 +64,10 @@ final class TextAnalyzer
         ['/\b(?:refund|pengembalian\s+dana|cashback|reimburse(?:ment)?|klaim|rembes)\b/iu', TransactionIntent::OTHER_INCOME, 'REFUND'],
         ['/\b(?:hadiah|kado|angpao|angpau|dikasih|dikirimin|pemberian|gift|sumbangan)\b/iu', TransactionIntent::OTHER_INCOME, 'GIFT'],
         ['/\b(?:terima|diterima|dapat|dapet|masuk|pemasukan|income|received)\b/iu', TransactionIntent::OTHER_INCOME, 'OTHER_INCOME'],
+
+        // --- Everyday spending nouns without a verb ("makan siang 45rb", "parkir 5rb").
+        //     Last, so "hasil jualan kopi" or "dapat traktiran makan" stay income. ---
+        ['/\b(?:makan|sarapan|ngopi|kopi|minum|jajan|parkir|bensin|tol|ojek|ojol|taksi|listrik|pdam|air\s+pam|internet|wifi|pulsa|kuota|tagihan|sewa|kos|kost|laundry|obat|dokter|belanjaan|groceries|lunch|dinner|breakfast|coffee|parking|fuel|rent|bill)\b/iu', TransactionIntent::EXPENSE, null],
     ];
 
     private const array INCOMING_PREPOSITIONS = ['dari', 'from', 'oleh', 'dr'];
@@ -87,6 +93,20 @@ final class TextAnalyzer
 
     private const array UPPERCASE_TOKENS = ['pt', 'cv', 'ud', 'pd', 'tbk', 'bca', 'bni', 'bri', 'bsi', 'cimb', 'ojk'];
 
+    /** Banks, e-wallets and cash: words that name one of the user's own accounts. */
+    private const string OWN_ACCOUNT_WORDS = 'bca|bni|bri|mandiri|bsi|cimb(?:\s+niaga)?|permata|danamon|btn|jago|bank\s+jago|seabank|blu|jenius|ocbc|maybank|gopay|ovo|dana|shopeepay|linkaja|e-?wallet|tunai|cash|dompet|rekening(?:\s+\w+)?';
+
+    /** Spending keywords → default expense category code (first match wins). */
+    private const array EXPENSE_CATEGORIES = [
+        'FOOD' => '/\b(?:makan|sarapan|ngopi|kopi|minum|jajan|snack|nasi|bakso|warteg|resto|restoran|kafe|cafe|groceries|sayur|lunch|dinner|breakfast|coffee|food)\b/iu',
+        'TRANSPORTATION' => '/\b(?:parkir|bensin|bbm|pertalite|pertamax|tol|ojek|ojol|gojek|grab|taksi|taxi|kereta|krl|mrt|busway|transjakarta|tiket\s+pesawat|parking|fuel)\b/iu',
+        'ELECTRICITY' => '/\b(?:listrik|pln|token\s+listrik)\b/iu',
+        'INTERNET' => '/\b(?:internet|wifi|indihome|pulsa|kuota|paket\s+data)\b/iu',
+        'HEALTHCARE' => '/\b(?:obat|dokter|apotek|klinik|rumah\s+sakit|rs|bpjs|vitamin)\b/iu',
+        'EDUCATION' => '/\b(?:spp|sekolah|kursus|buku\s+pelajaran|uang\s+kuliah|ukt)\b/iu',
+        'SHOPPING' => '/\b(?:belanja|baju|sepatu|shopee|tokopedia|lazada|marketplace|shopping)\b/iu',
+    ];
+
     /**
      * @return array{intent: TransactionIntent|null, category: string|null, keyword: string|null, warning: string|null}
      */
@@ -102,6 +122,10 @@ final class TextAnalyzer
             if (preg_match($regex, $text, $m) === 1) {
                 $keyword = mb_strtolower(preg_replace('/\s+/u', ' ', $m[0]) ?? $m[0]);
 
+                if ($meaning === TransactionIntent::EXPENSE && $category === null) {
+                    $category = $this->expenseCategory($text);
+                }
+
                 return is_string($meaning)
                     ? ['intent' => null, 'category' => null, 'keyword' => $keyword, 'warning' => $meaning]
                     : ['intent' => $meaning, 'category' => $category, 'keyword' => $keyword, 'warning' => null];
@@ -109,6 +133,17 @@ final class TextAnalyzer
         }
 
         return $none;
+    }
+
+    private function expenseCategory(string $text): ?string
+    {
+        foreach (self::EXPENSE_CATEGORIES as $code => $regex) {
+            if (preg_match($regex, $text) === 1) {
+                return $code;
+            }
+        }
+
+        return null;
     }
 
     /**

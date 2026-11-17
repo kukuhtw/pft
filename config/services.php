@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    // Telegram bot (documentation/telegram-bot.html). The bot stays off while the token or secret is empty.
+    'telegram' => [
+        'bot_token' => (string) env('TELEGRAM_BOT_TOKEN', ''),
+        'bot_username' => ltrim((string) env('TELEGRAM_BOT_USERNAME', ''), '@'),
+        'webhook_secret' => (string) env('TELEGRAM_WEBHOOK_SECRET', ''),
+        'link_ttl_minutes' => (int) env('TELEGRAM_LINK_TTL_MINUTES', 10),
+    ],
+
 ];

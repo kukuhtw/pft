@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Modules\Interpretation\Enums\TransactionIntent;
+use App\Modules\Interpretation\Services\HeuristicTextInterpreter;
 use App\Modules\Interpretation\Services\TextAnalyzer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -29,8 +30,14 @@ final class TextAnalyzerTest extends TestCase
         yield 'installment to bank' => ['bayar cicilan KTA ke Bank Jago Rp 1.250.000', TransactionIntent::DEBT_REPAYMENT, null, 'Bank Jago', null, '1250000.00'];
         yield 'give money back' => ['balikin uang ke Rina 200k', TransactionIntent::DEBT_REPAYMENT, null, 'Rina', null, '200000.00'];
         yield 'paying salary is an expense' => ['bayar gaji karyawan', TransactionIntent::EXPENSE, null, null, null, null];
+        yield 'bank to bank transfer' => ['transfer BCA ke BNI 2jt', TransactionIntent::INTERNAL_TRANSFER, null, null, null, '2000000.00'];
+        yield 'wallet top-up from bank' => ['tf dari bca ke gopay 100rb', TransactionIntent::INTERNAL_TRANSFER, null, null, null, '100000.00'];
         yield 'cash withdrawal' => ['tarik tunai 500rb', TransactionIntent::INTERNAL_TRANSFER, null, null, null, '500000.00'];
         yield 'interest' => ['bunga deposito', TransactionIntent::OTHER_INCOME, 'INTEREST_INCOME', null, null, null];
+        yield 'spending noun without a verb' => ['makan siang 45rb', TransactionIntent::EXPENSE, 'FOOD', null, null, '45000.00'];
+        yield 'parking' => ['parkir 5rb', TransactionIntent::EXPENSE, 'TRANSPORTATION', null, null, '5000.00'];
+        yield 'verb + category keyword' => ['beli token listrik 200rb', TransactionIntent::EXPENSE, 'ELECTRICITY', null, null, '200000.00'];
+        yield 'selling coffee stays income' => ['hasil jualan kopi 300rb', TransactionIntent::ACTIVITY_INCOME, 'BUSINESS', null, 'jualan kopi', '300000.00'];
     }
 
     #[DataProvider('sentences')]
@@ -42,7 +49,8 @@ final class TextAnalyzerTest extends TestCase
 
         $this->assertSame($intent, $detected['intent']);
         $this->assertSame($category, $detected['category']);
-        $this->assertSame($counterparty, $a->counterparty($text, $incoming));
+        // Through the interpreter the app uses: transfers between own accounts never get a party.
+        $this->assertSame($counterparty, (new HeuristicTextInterpreter($a))->interpret($text)->counterparty);
         if ($intent === TransactionIntent::ACTIVITY_INCOME) {
             $this->assertSame($activity, $a->activity($text));
         }

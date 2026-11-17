@@ -45,5 +45,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api', static fn (Request $request) => Limit::perMinute(120)->by($request->user()?->id ?: $request->ip()));
 
         RateLimiter::for('posting', static fn (Request $request) => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip()));
+
+        // Telegram webhook: per-chat limits are applied inside the bot; this caps the endpoint itself.
+        RateLimiter::for('telegram', static fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
     }
 }

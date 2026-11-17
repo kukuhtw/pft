@@ -12,7 +12,7 @@ A personal-finance ledger for Indonesian users (IDR, Bahasa Indonesia by default
 |---|---|---|
 | 1 Foundation | Auth, migrations, accounts, chart of accounts, double-entry ledger, income/expense/transfer, reversal, idempotency, summary report, tests | ✅ Implemented and tested (SQLite); MySQL run pending, see below |
 | 2 Dashboard | Blade/Livewire UI, categories CRUD, budgets, reports | ✅ Implemented and tested; account deletion (UU PDP) still pending, see security checklist |
-| 3 AI & Telegram | NL parser, confirmation flow, Telegram bot | ⬜ |
+| 3 AI & Telegram | NL parser, confirmation flow, Telegram bot | 🟡 Telegram bot with confirmation flow done (heuristic parser); LLM parser pending |
 | 4 Extension & Imports | Chrome extension, CSV/XLSX/PDF import, reconciliation | ⬜ |
 | 5 Advanced finance | Card statements, installments, recurring, forecasting | ⬜ |
 
@@ -89,6 +89,12 @@ Guarantees:
 
 **Catat transaksi** takes free text ("pinjam dari Pak Budi 2jt"), shows the app's interpretation and lets the user correct it before saving. It posts through the same services as the API (`Channel::WEB`, one idempotency key per proposal). Components live in `app/Livewire`, views in `resources/views/livewire`.
 
+## Telegram bot
+
+Users link their private chat from **Profil → Telegram** (one-time code, 10 min), then send entries like `makan siang 45rb`. The bot asks for missing accounts with buttons, shows a summary, and posts only after **✅ Simpan** (`Channel::TELEGRAM`, same `IntentPostingService` as the web). Commands: `/saldo`, `/ringkasan`, `/terakhir`, `/batal`, `/bantuan`, `/putuskan`.
+
+Setup: set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` (≥32 chars), then `php artisan telegram:webhook set` (HTTPS `APP_URL` required). Webhook: `POST /api/telegram/webhook`, verified by `X-Telegram-Bot-Api-Secret-Token`. Full guide with screenshots: [`documentation/telegram-bot.html`](documentation/telegram-bot.html). User guide for the web app: [`documentation/tutorial.html`](documentation/tutorial.html).
+
 ## API
 
 Base URL `/api/v1`, Bearer token (Sanctum). Contract: [`docs/api/openapi.yaml`](docs/api/openapi.yaml).
@@ -106,6 +112,7 @@ curl -X POST /api/v1/transactions/transfer \
 |---|---|---|
 | `ledger:verify [--user=<public id>]` | Balanced journals, projection = Σlines, tenant isolation, transaction↔journal links | daily 02:00 WIB |
 | `finance:prune` | Delete expired idempotency keys and audit logs past retention | daily 03:00 WIB |
+| `telegram:webhook {set\|delete\|info} [--url=]` | Register/remove/inspect the bot webhook and command menu | manual |
 
 ## Environment variables
 
@@ -134,6 +141,7 @@ app/Modules/
   Transactions/  Income, expense, transfer, reversal, idempotency
   Budgets/       Monthly limit per expense category, status vs ledger actuals, copy month
   Reporting/     Financial summary, per-category breakdown, 12-month trend
+  Telegram/      Bot webhook, chat linking, draft → confirm flow, telegram:webhook command
   Audit/         Audit trail
 docs/            Architecture, OpenAPI, security checklist, Ubuntu deployment
 tests/           Unit, Feature (ledger, accounting rules, API), Integration (salary simulation, concurrency)
