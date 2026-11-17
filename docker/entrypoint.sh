@@ -36,6 +36,10 @@ case "$ROLE" in
         if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
             as_app php artisan migrate --force --no-interaction
         fi
+        if [ -n "${DASHBOARD_ADMIN_EMAIL:-}" ] && [ -n "${DASHBOARD_ADMIN_PASSWORD:-}" ]; then
+            # Idempotent: creates the dashboard login or updates it when the .env value changed.
+            as_app php artisan dashboard:user --no-interaction || echo "WARNING: dashboard:user failed (check DASHBOARD_ADMIN_*)" >&2
+        fi
         if [ "${VERIFY_LEDGER_ON_BOOT:-true}" = "true" ]; then
             # Non-fatal: report but keep serving; the daily scheduled check raises a CRITICAL log.
             as_app php artisan ledger:verify || echo "WARNING: ledger:verify reported issues" >&2

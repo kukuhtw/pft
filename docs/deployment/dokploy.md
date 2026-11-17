@@ -45,6 +45,8 @@ All three app roles use one image (`Dockerfile`), and `app-storage` is shared be
 3. **Environment** tab: paste [`docker/dokploy.env.example`](../../docker/dokploy.env.example) and replace every `<…>` value.
    - Generate `APP_KEY`, `DB_PASSWORD` and `MYSQL_ROOT_PASSWORD` freshly. Never reuse local or XAMPP credentials.
    - Dokploy writes these to `.env` beside the compose file. Each service loads it via `env_file: .env`.
+   - **Required, or the deploy stops at once:** `MYSQL_ROOT_PASSWORD` and `DB_PASSWORD` (compose fails with "required variable … is missing a value"), plus `APP_KEY` (the web container exits).
+   - Dashboard login: set `DASHBOARD_ADMIN_EMAIL` and `DASHBOARD_ADMIN_PASSWORD` (a bcrypt hash from `php artisan dashboard:user --hash`, inside single quotes). The web container syncs it on every start, so no shell is needed. Keep `AUTH_REGISTRATION_ENABLED=false`.
 4. **Domains** tab → *Add Domain*:
    - Service: `web` · Host: `pft.example.com` · Container port: `8080` · Path `/`
    - HTTPS: **on**, certificate provider: **Let's Encrypt**
@@ -53,10 +55,8 @@ All three app roles use one image (`Dockerfile`), and `app-storage` is shared be
 6. Smoke test:
    ```bash
    curl -fsS https://pft.example.com/up
-   curl -fsS -X POST https://pft.example.com/api/v1/auth/register -H 'Content-Type: application/json' \
-     -d '{"name":"Admin","email":"you@example.com","password":"<Strong-Password-123>","password_confirmation":"<Strong-Password-123>"}'
    ```
-   Use your own email here; it's only sent to your server.
+   Then sign in at `https://pft.example.com/login` with `DASHBOARD_ADMIN_EMAIL` and the password you hashed.
 7. **Auto-deploy** (optional): enable the webhook in *General → Deployments* so pushes to the branch redeploy.
 
 ## Operations
