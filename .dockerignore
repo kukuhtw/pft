@@ -1,0 +1,26 @@
+# Secrets and local state must never enter the image.
+.env
+.env.*
+!.env.example
+*.sqlite
+database/database.sqlite
+
+.git
+.github
+.idea
+.vscode
+.claude
+node_modules
+vendor
+public/hot
+public/storage
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/app/*
+bootstrap/cache/*.php
+.phpunit.cache
+.phpunit.result.cache
+docker-compose*.yml
+Dockerfile

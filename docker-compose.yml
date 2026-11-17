@@ -1,0 +1,104 @@
+# Dokploy "Docker Compose" deployment.
+# - Domain + HTTPS: add the domain in Dokploy → Domains tab, service "web", port 8080.
+#   Dokploy injects Traefik labels and attaches dokploy-network to "web" only.
+# - Environment: set in Dokploy → Environment tab (written to .env next to this file).
+# - MySQL is reachable only on the private "internal" network; it is never published.
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pft-app:${APP_IMAGE_TAG:-latest}
+    command: ["web"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CONTAINER_ROLE: web
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      LOG_CHANNEL: stderr
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+    expose:
+      - "8080"
+    volumes:
+      - app-storage:/var/www/html/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - internal
+
+  worker:
+    image: pft-app:${APP_IMAGE_TAG:-latest}
+    pull_policy: never   # image is built by the "web" service
+    command: ["worker"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CONTAINER_ROLE: worker
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      LOG_CHANNEL: stderr
+    volumes:
+      - app-storage:/var/www/html/storage
+    depends_on:
+      web:
+        condition: service_healthy   # migrations have run
+    networks:
+      - internal
+
+  scheduler:
+    image: pft-app:${APP_IMAGE_TAG:-latest}
+    pull_policy: never
+    command: ["scheduler"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CONTAINER_ROLE: scheduler
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      LOG_CHANNEL: stderr
+    volumes:
+      - app-storage:/var/www/html/storage
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - internal
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+00:00
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-pft}
+      MYSQL_USER: ${DB_USERNAME:-pft}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in Dokploy Environment}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set in Dokploy Environment}
+    expose:
+      - "3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - internal
+
+volumes:
+  mysql-data:    # back up with Dokploy Volume Backups (named volumes only)
+  app-storage:
+
+networks:
+  internal:
