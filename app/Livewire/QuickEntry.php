@@ -191,7 +191,7 @@ final class QuickEntry extends Component
         $intent = TransactionIntent::tryFrom($this->intent);
 
         $this->validate([
-            'intent' => ['required', Rule::enum(TransactionIntent::class)->except([TransactionIntent::OPENING_BALANCE])],
+            'intent' => ['required', Rule::enum(TransactionIntent::class)->except([TransactionIntent::OPENING_BALANCE, TransactionIntent::BALANCE_ADJUSTMENT])],
             'amount' => ['required', 'string', 'max:32'],
             'transactionDate' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.$today],
             'description' => ['nullable', 'string', 'max:255'],

@@ -89,7 +89,7 @@ final class EntryInterpretationService
             TransactionIntent::SALARY_INCOME, TransactionIntent::ACTIVITY_INCOME, TransactionIntent::OTHER_INCOME, TransactionIntent::LOAN_RECEIVED => ['amount', 'destination_account_id'],
             TransactionIntent::DEBT_REPAYMENT, TransactionIntent::EXPENSE => ['amount', 'source_account_id'],
             TransactionIntent::INTERNAL_TRANSFER => ['amount', 'source_account_id', 'destination_account_id'],
-            TransactionIntent::OPENING_BALANCE => [],
+            TransactionIntent::OPENING_BALANCE, TransactionIntent::BALANCE_ADJUSTMENT => [],
         };
 
         if (in_array($intent, [TransactionIntent::LOAN_RECEIVED, TransactionIntent::DEBT_REPAYMENT], true)

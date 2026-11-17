@@ -169,6 +169,54 @@ final class TransactionService
     }
 
     /**
+     * Moves an account's balance by a signed delta against an equity system account, never an
+     * income/expense one, so reports of income, spending and budgets are unaffected.
+     *   - opening correction: Opening Balance Equity, dated on the opening date (history is fixed too)
+     *   - today's adjustment: Reconciliation Equity, dated today
+     * A positive delta increases what the account shows (more money on an asset, more debt on a liability).
+     */
+    public function postBalanceCorrection(User $user, FinancialAccount $account, Money $delta, bool $opening, ?CarbonImmutable $date, string $description): Transaction
+    {
+        if ($delta->isZero()) {
+            throw new InvalidTransactionException(__('ledger.amount_positive'));
+        }
+
+        return DB::transaction(function () use ($user, $account, $delta, $opening, $date, $description): Transaction {
+            $account->loadMissing('ledgerAccount');
+            $this->assertCurrency($delta, $account);
+            $equity = $this->chart->systemAccount($user, $opening ? ChartOfAccountsService::OPENING_BALANCE_EQUITY : ChartOfAccountsService::RECONCILIATION_EQUITY);
+
+            $amount = $delta->isNegative() ? $delta->negate() : $delta;
+            // Asset grows on the debit side, a liability on the credit side.
+            $accountOnDebit = $account->isLiability() ? $delta->isNegative() : $delta->isPositive();
+
+            $lines = $accountOnDebit
+                ? [JournalLineDraft::debit($account->ledger_account_id, $amount), JournalLineDraft::credit($equity->id, $amount)]
+                : [JournalLineDraft::debit($equity->id, $amount), JournalLineDraft::credit($account->ledger_account_id, $amount)];
+
+            // Money leaving the account is its "source" side, money arriving its "destination".
+            $leaving = $account->isLiability() ? $delta->isPositive() : $delta->isNegative();
+
+            return $this->persistAndPost(
+                $user,
+                TransactionType::ADJUSTMENT,
+                new TransactionInput(
+                    amount: $amount,
+                    transactionDate: $date,
+                    description: $description,
+                    channel: Channel::WEB,
+                    metadata: ['adjustment' => $opening ? 'opening' : 'balance'],
+                ),
+                $leaving ? $account : null,
+                $leaving ? null : $account,
+                null,
+                $lines,
+                $opening ? JournalEntryType::OPENING_BALANCE : JournalEntryType::ADJUSTMENT,
+            );
+        });
+    }
+
+    /**
      * Reverse a posted transaction by posting a mirror journal entry. The original entry is never modified.
      */
     public function reverse(User $user, string $transactionId, ?string $reason = null, ?string $idempotencyKey = null): Transaction

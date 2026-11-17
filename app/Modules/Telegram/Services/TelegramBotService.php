@@ -260,7 +260,7 @@ final readonly class TelegramBotService
                 return;
             case 'i':
                 $intent = TransactionIntent::tryFrom($value);
-                if ($intent === null || $intent === TransactionIntent::OPENING_BALANCE) {
+                if ($intent === null || $intent->isSystem()) {
                     return;
                 }
                 $draft = [...$draft, 'intent' => $intent->value, 'source' => null, 'destination' => null, 'category_id' => null, 'warnings' => []];

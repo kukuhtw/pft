@@ -59,7 +59,7 @@
         <thead><tr><th>Jenis</th><th>Contoh</th><th>Golongan</th></tr></thead>
         <tbody>
           <tr><td>Rekening Bank</td><td>BCA, BNI, Mandiri</td><td>Aset</td></tr>
-          <tr><td>Dompet Tunai</td><td>Uang tunai di dompet</td><td>Aset</td></tr>
+          <tr><td>Uang Tunai / Kas (dompet fisik)</td><td>Uang tunai di dompet, kas rumah, kas usaha</td><td>Aset</td></tr>
           <tr><td>Dompet Digital</td><td>GoPay, OVO, DANA</td><td>Aset</td></tr>
           <tr><td>Investasi</td><td>Reksa dana, saham</td><td>Aset</td></tr>
           <tr><td>Kartu Kredit</td><td>Kartu kredit bank</td><td>Hutang</td></tr>
@@ -67,6 +67,13 @@
         </tbody>
       </table></div>
       <p>Untuk kartu kredit dan pinjaman, ada kolom tambahan <strong>Hutang kepada (pihak)</strong>, misalnya <em>Pak Budi</em>. Dengan kolom ini, aplikasi bisa menampilkan hutang per orang.</p>
+      <h3>Mengubah nama atau saldo akun</h3>
+      <p>Klik <span class="ui">Ubah</span> di baris akun. Anda bisa mengganti <strong>Nama akun</strong> dan <strong>4 digit terakhir</strong>. Riwayat transaksi tetap utuh. Untuk saldo, pilih salah satu:</p>
+      <ul>
+        <li><strong>Ubah saldo awal</strong>: untuk salah ketik saat setup. Isi saldo awal yang benar. Selisihnya dicatat pada tanggal pembukaan akun.</li>
+        <li><strong>Sesuaikan saldo hari ini</strong>: isi saldo nyata sekarang, misalnya sesuai mutasi bank atau isi dompet. Selisihnya dicatat hari ini sebagai "Penyesuaian saldo".</li>
+      </ul>
+      <p>Kedua koreksi <strong>tidak</strong> dihitung sebagai pemasukan atau pengeluaran, jadi laporan dan budget tidak berubah. Setiap koreksi tercatat di menu Transaksi dan di log audit.</p>
       <div class="note warn"><p><b>Lindungi data Anda:</b> isi hanya <b>4 digit terakhir</b> nomor rekening atau kartu. Aplikasi memang tidak menyimpan nomor lengkap. Jangan tulis nomor lengkap, PIN, atau CVV di kolom catatan mana pun.</p></div>
     </section>
 
@@ -211,7 +218,9 @@
       <h3>Aplikasi salah memahami kalimat saya.</h3>
       <p>Ubah <strong>Jenis</strong> di formulir sebelum menyimpan. Jika sudah terlanjur tersimpan, gunakan <span class="ui">Batalkan</span>, lalu catat ulang.</p>
       <h3>Saldo awal saya salah.</h3>
-      <p>Saldo awal tidak bisa dibatalkan dari menu Transaksi. Untuk selisih kecil, catat <strong>Pemasukan lainnya</strong> atau <strong>Pengeluaran</strong> sebesar selisihnya. Untuk koreksi besar, hubungi pengelola aplikasi.</p>
+      <p>Buka menu <span class="ui">Akun</span>, klik <span class="ui">Ubah</span>, pilih <strong>Ubah saldo awal</strong>, lalu isi nominal yang benar. Jika saldo saat ini berbeda dengan kenyataan, pilih <strong>Sesuaikan saldo hari ini</strong>. Jangan memakai Pemasukan atau Pengeluaran untuk koreksi, karena laporan Anda akan ikut berubah.</p>
+      <h3>Di mana pilihan uang tunai / kas?</h3>
+      <p>Saat membuat akun, pilih Jenis <strong>Uang Tunai / Kas (dompet fisik)</strong>.</p>
       <h3>Bisakah mencatat lewat Telegram?</h3>
       <p>Bisa, jika pengelola sudah mengaktifkan bot. Lihat <a href="telegram-bot.html">Panduan bot Telegram</a>.</p>
       <footer>Panduan ini untuk versi web. Impor mutasi bank akan dijelaskan saat fiturnya tersedia. Screenshot memakai data contoh fiktif.</footer>

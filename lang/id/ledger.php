@@ -28,6 +28,8 @@ return [
     'account_type_invalid' => 'Jenis akun :type tidak valid.',
     'institution_invalid' => 'Institusi keuangan :code tidak dikenal.',
     'opening_balance_negative' => 'Saldo awal tidak boleh negatif.',
+    'balance_negative' => 'Saldo tidak boleh negatif.',
+    'account_name_required' => 'Nama akun wajib diisi.',
     'counterparty_requires_liability' => 'Pihak (counterparty) hanya dapat ditautkan ke akun pinjaman atau kartu kredit.',
     'debt_account_not_liability' => 'Akun :account bukan akun hutang (pinjaman/kartu kredit).',
     'debt_party_required' => 'Sebutkan pihak pemberi pinjaman atau pilih akun hutang.',
