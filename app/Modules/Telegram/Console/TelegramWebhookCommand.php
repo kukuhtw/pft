@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Telegram\Console;
 
-use App\Modules\Telegram\Services\TelegramAccess;
 use App\Modules\Telegram\Services\TelegramClient;
+use App\Modules\Telegram\Services\TelegramSetupService;
 use Illuminate\Console\Command;
 
 /**
@@ -18,7 +18,7 @@ final class TelegramWebhookCommand extends Command
 
     protected $description = 'Register, remove or inspect the Telegram bot webhook';
 
-    public function handle(TelegramClient $telegram): int
+    public function handle(TelegramClient $telegram, TelegramSetupService $setup): int
     {
         if (! $telegram->configured()) {
             $this->error('TELEGRAM_BOT_TOKEN is not set.');
@@ -27,85 +27,59 @@ final class TelegramWebhookCommand extends Command
         }
 
         return match ((string) $this->argument('action')) {
-            'set' => $this->set($telegram),
-            'delete' => $this->report($telegram->call('deleteWebhook', ['drop_pending_updates' => true]), 'Webhook removed.'),
-            'info' => $this->showInfo($telegram),
+            'set' => $this->set($setup),
+            'delete' => $setup->deleteWebhook() ? $this->done('Webhook removed.') : $this->failed(),
+            'info' => $this->showInfo($setup),
             default => $this->invalid(),
         };
     }
 
-    private function set(TelegramClient $telegram): int
+    private function set(TelegramSetupService $setup): int
     {
-        $secret = (string) config('services.telegram.webhook_secret');
-        if (strlen($secret) < 32 || preg_match('/^[A-Za-z0-9_-]+$/', $secret) !== 1) {
-            $this->error('TELEGRAM_WEBHOOK_SECRET must be at least 32 characters of A-Z, a-z, 0-9, _ or -. Generate one with: php -r "echo bin2hex(random_bytes(32));"');
+        $result = $setup->registerWebhook($this->option('url') ?: null);
+
+        if (! $result['ok']) {
+            $this->error($result['message']);
 
             return self::FAILURE;
         }
 
-        $allowed = TelegramAccess::allowedUserIds();
-        if ($allowed === []) {
-            $this->warn('TELEGRAM_ALLOWED_USER_IDS is empty: the bot will ignore every message until you add Telegram user ids.');
-        } else {
-            $this->line('Allowed Telegram users: '.count($allowed));
+        if ($result['warning'] !== null) {
+            $this->warn($result['warning']);
         }
 
-        $base = rtrim((string) ($this->option('url') ?: config('app.url')), '/');
-        if (! str_starts_with($base, 'https://')) {
-            $this->error('Telegram only delivers to HTTPS URLs. Pass --url=https://your-domain');
+        return $this->done($result['message']);
+    }
 
-            return self::FAILURE;
+    private function showInfo(TelegramSetupService $setup): int
+    {
+        $info = $setup->webhookInfo();
+        if ($info === null) {
+            return $this->failed();
         }
 
-        $result = $telegram->call('setWebhook', [
-            'url' => $base.'/api/telegram/webhook',
-            'secret_token' => $secret,
-            'allowed_updates' => ['message', 'callback_query'],
-            'drop_pending_updates' => true,
-            'max_connections' => 10,
+        $this->table(['Field', 'Value'], [
+            ['url', $info['url'] ?: '—'],
+            ['matches APP_URL', $info['matches'] ? 'yes' : 'no'],
+            ['pending_update_count', (string) $info['pending']],
+            ['last_error_message', $info['last_error'] ?? '—'],
         ]);
 
-        $commands = $telegram->call('setMyCommands', ['commands' => [
-            ['command' => 'saldo', 'description' => 'Saldo semua akun'],
-            ['command' => 'ringkasan', 'description' => 'Ringkasan & budget bulan ini'],
-            ['command' => 'terakhir', 'description' => '5 transaksi terakhir'],
-            ['command' => 'batal', 'description' => 'Batalkan draf'],
-            ['command' => 'bantuan', 'description' => 'Cara pakai'],
-            ['command' => 'putuskan', 'description' => 'Putuskan Telegram dari akun'],
-        ]]);
-
-        if ($commands === null) {
-            $this->warn('Webhook call done, but the command menu could not be set.');
-        }
-
-        return $this->report($result, 'Webhook set to '.$base.'/api/telegram/webhook');
+        return self::SUCCESS;
     }
 
-    private function showInfo(TelegramClient $telegram): int
+    private function done(string $message): int
     {
-        $info = $telegram->call('getWebhookInfo');
-        if ($info === null) {
-            return $this->report(null, '');
-        }
-
-        $this->table(['Field', 'Value'], collect(['url', 'pending_update_count', 'last_error_date', 'last_error_message', 'max_connections'])
-            ->map(static fn (string $k): array => [$k, (string) ($info[$k] ?? '—')])->all());
+        $this->info($message);
 
         return self::SUCCESS;
     }
 
-    /** @param  array<string, mixed>|null  $result */
-    private function report(?array $result, string $success): int
+    private function failed(): int
     {
-        if ($result === null) {
-            $this->error('Telegram API call failed (see the application log).');
+        $this->error('Telegram API call failed (see the application log).');
 
-            return self::FAILURE;
-        }
-
-        $this->info($success);
-
-        return self::SUCCESS;
+        return self::FAILURE;
     }
 
     private function invalid(): int

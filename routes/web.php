@@ -16,7 +16,7 @@ use App\Livewire\Reports;
 use App\Livewire\Transactions;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/dashboard');
+Route::view('/', 'landing')->name('home');
 
 Route::middleware('guest')->group(function (): void {
     Route::livewire('/login', Login::class)->name('login');
@@ -31,6 +31,7 @@ Route::middleware(['auth', EnsureEmailAllowed::class])->group(function (): void 
     Route::livewire('/budgets', Budgets::class)->name('budgets');
     Route::livewire('/reports', Reports::class)->name('reports');
     Route::livewire('/profile', Profile::class)->name('profile');
+    Route::livewire('/panduan/telegram', TelegramGuide::class)->name('telegram.guide');
     Route::post('/logout', LogoutController::class)->name('logout');
 
     Route::middleware('throttle:10,1')->group(function (): void {

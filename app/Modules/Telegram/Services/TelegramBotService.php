@@ -41,8 +41,8 @@ final readonly class TelegramBotService
     private const string WARNING_TEXT_DEFAULT = 'Periksa kembali jenis transaksinya.';
 
     private const array WARNINGS = [
-        'LENDING_OUT_NOT_SUPPORTED' => 'Sepertinya Anda meminjamkan uang (piutang). Ini belum didukung, jadi catat sebagai pengeluaran atau transfer dulu.',
-        'RECEIVABLE_COLLECTION_NOT_SUPPORTED' => 'Sepertinya ini pengembalian piutang. Ini belum didukung, jadi catat sebagai pemasukan lainnya dulu.',
+        'LENDING_OUT_NOT_SUPPORTED' => 'Sepertinya Anda meminjamkan uang (piutang). Ini bukan pengeluaran: buat akun jenis Piutang di menu Akun (mis. "Piutang Andi"), lalu catat sebagai Transfer dari rekening Anda ke akun Piutang itu.',
+        'RECEIVABLE_COLLECTION_NOT_SUPPORTED' => 'Sepertinya ini pengembalian piutang. Ini bukan pemasukan: catat sebagai Transfer dari akun Piutang ke rekening yang menerima uangnya.',
         'NO_OPEN_DEBT_FOR_COUNTERPARTY' => 'Tidak ada hutang aktif ke pihak ini. Pilih akun hutang yang dibayar.',
         'CHOOSE_DEBT_ACCOUNT' => 'Pihak ini punya lebih dari satu hutang. Pilih yang dibayar.',
         'TEXT_SUGGESTS_LOAN_RECEIVED' => 'Teks menyebut pinjaman, tapi dicatat sebagai pemasukan.',

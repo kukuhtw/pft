@@ -81,6 +81,24 @@ final class AccountEditTest extends TestCase
         $this->assertLedgerIntact($user);
     }
 
+    public function test_lending_money_to_a_receivable_is_neither_expense_nor_income(): void
+    {
+        $user = $this->provisionedUser();
+        $bank = $this->openAccount($user, 'BCA', opening: 5000000);
+        $receivable = $this->openAccount($user, 'Piutang Andi', type: 'RECEIVABLE');
+        $netWorthBefore = $this->summary($user)->netWorth->amount;
+
+        $this->transfer($user, $bank, $receivable, 1000000);  // lend
+        $this->transfer($user, $receivable, $bank, 400000);   // partly repaid
+
+        $summary = $this->summary($user);
+        $this->assertSame('600000.00', $this->balanceOf($receivable));
+        $this->assertSame('0.00', $summary->totalExpenses->amount);
+        $this->assertSame('0.00', $summary->totalIncome->amount);
+        $this->assertSame($netWorthBefore, $summary->netWorth->amount, 'Money lent is still yours.');
+        $this->assertLedgerIntact($user);
+    }
+
     public function test_correct_opening_balance_up_and_down_for_an_asset(): void
     {
         $user = $this->provisionedUser();

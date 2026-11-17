@@ -78,6 +78,7 @@ Guarantees:
 
 | Page | What it does |
 |---|---|
+| `/` | Public landing page: what the app does, the money rules (transfers, loans, lending), security, self-hosting cost |
 | `/login`, `/register` | Session auth: 5 tries/min per email+IP, generic error, session regeneration, audit log |
 | `/dashboard` | Income/expense/net worth, money in by meaning (salary, activity, other, loan received, which is not income), debts per party, accounts, recent entries, **Catat transaksi** |
 | `/transactions` | Filter by intent, party, date; reverse an entry (mirror journal) |
@@ -86,6 +87,7 @@ Guarantees:
 | `/reports` | Period summary, 12-month income vs expense chart (with table view), income/expense by category, inflows by meaning, CSV export |
 | `/categories` | Add custom income/expense categories, rename, hide (history kept; fallback categories can't be hidden) |
 | `/profile` | Change name/password (password change revokes API tokens and other sessions), download all my data (JSON) |
+| `/panduan/telegram` | Telegram bot setup guide with live config checks (secrets never shown); admin (`DASHBOARD_ADMIN_EMAIL`) can check the bot and register the webhook, throttled and audited |
 
 **Catat transaksi** takes free text ("pinjam dari Pak Budi 2jt"), shows the app's interpretation and lets the user correct it before saving. It posts through the same services as the API (`Channel::WEB`, one idempotency key per proposal). Components live in `app/Livewire`, views in `resources/views/livewire`.
 
