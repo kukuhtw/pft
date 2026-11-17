@@ -11,7 +11,7 @@ A personal-finance ledger for Indonesian users (IDR, Bahasa Indonesia by default
 | Phase | Scope | Status |
 |---|---|---|
 | 1 Foundation | Auth, migrations, accounts, chart of accounts, double-entry ledger, income/expense/transfer, reversal, idempotency, summary report, tests | ✅ Implemented and tested (SQLite); MySQL run pending, see below |
-| 2 Dashboard | Blade/Livewire UI, categories CRUD, budgets, reports | ⬜ |
+| 2 Dashboard | Blade/Livewire UI, categories CRUD, budgets, reports | 🟡 Login/register, dashboard, quick entry, transactions, accounts done; categories CRUD, budgets, reports pending |
 | 3 AI & Telegram | NL parser, confirmation flow, Telegram bot | ⬜ |
 | 4 Extension & Imports | Chrome extension, CSV/XLSX/PDF import, reconciliation | ⬜ |
 | 5 Advanced finance | Card statements, installments, recurring, forecasting | ⬜ |
@@ -23,7 +23,8 @@ composer install
 cp .env.example .env && php artisan key:generate     # set DB_* (or DB_CONNECTION=sqlite)
 cp .env.testing.example .env.testing                 # set APP_KEY; SQLite in-memory by default
 php artisan migrate
-php artisan serve
+npm install && npm run build                         # Tailwind/Vite assets for the web dashboard
+php artisan serve                                    # http://localhost:8000 → /login
 php artisan test
 ```
 
@@ -72,6 +73,17 @@ Guarantees:
 - Posted journals and transactions are immutable. Corrections post a reversal entry.
 - Every posting endpoint requires an `Idempotency-Key`.
 - Balances are a ledger projection, verified daily by `php artisan ledger:verify`.
+
+## Web dashboard (Blade + Livewire 4)
+
+| Page | What it does |
+|---|---|
+| `/login`, `/register` | Session auth: 5 tries/min per email+IP, generic error, session regeneration, audit log |
+| `/dashboard` | Income/expense/net worth, money in by meaning (salary, activity, other, loan received, which is not income), debts per party, accounts, recent entries, **Catat transaksi** |
+| `/transactions` | Filter by intent, party, date; reverse an entry (mirror journal) |
+| `/accounts` | Bank, cash, e-wallet, card and loan accounts; loans/cards can name the party they are owed to |
+
+**Catat transaksi** takes free text ("pinjam dari Pak Budi 2jt"), shows the app's interpretation and lets the user correct it before saving. It posts through the same services as the API (`Channel::WEB`, one idempotency key per proposal). Components live in `app/Livewire`, views in `resources/views/livewire`.
 
 ## API
 
