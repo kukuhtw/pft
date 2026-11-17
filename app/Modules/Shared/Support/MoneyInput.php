@@ -32,4 +32,13 @@ final class MoneyInput
 
         return app(TextAnalyzer::class)->amount($text, $currency);
     }
+
+    /**
+     * A stored amount ("45000.00", or "45000" from some drivers) as an editable field value: "45000", "1250.5".
+     * Only decimals are trimmed, never the zeros of the whole number.
+     */
+    public static function format(string $amount): string
+    {
+        return str_contains($amount, '.') ? rtrim(rtrim($amount, '0'), '.') : $amount;
+    }
 }

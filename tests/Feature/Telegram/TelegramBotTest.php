@@ -211,7 +211,7 @@ final class TelegramBotTest extends TestCase
 
         $this->tap(1001, 's:'.$bca->id);
         $this->assertStringContainsString('Periksa sebelum disimpan', $this->lastReply()['text']);
-        $this->assertSame(['ok', 'no', 'chg'], $this->buttons());
+        $this->assertSame(['ok', 'no', 'chg', 'acc'], $this->buttons());
 
         $this->tap(1001, 'ok');
         $tx = Transaction::query()->where('user_id', $user->id)->where('channel', 'TELEGRAM')->sole();
@@ -227,17 +227,57 @@ final class TelegramBotTest extends TestCase
         $this->assertLedgerIntact($user);
     }
 
+    public function test_expense_source_named_in_text_and_change_account_button(): void
+    {
+        $user = $this->linkedUser(1001);
+        $bca = $this->openAccount($user, 'BCA Gaji', 'BANK', institution: 'BCA', opening: 1_000_000);
+        $gopay = $this->openAccount($user, 'GoPay', 'EWALLET', opening: 300_000);
+        $wallet = $this->openAccount($user, 'Dompet', 'CASH', opening: 100_000);
+        $receivable = $this->openAccount($user, 'Piutang Andi', 'RECEIVABLE');
+
+        // Nothing named: the bot asks, and a receivable is never offered for spending.
+        $this->say(1001, 'parkir 5rb');
+        $this->assertStringContainsString('Dibayar dari pos mana', $this->lastReply()['text']);
+        $this->assertNotContains('s:'.$receivable->id, $this->buttons());
+        $this->assertCount(4, $this->buttons(), '3 money accounts + Batal.');
+        $this->tap(1001, 'no');
+
+        $this->say(1001, 'makan siang 45rb pakai gopay');
+        $this->assertStringContainsString('Dari: GoPay', $this->lastReply()['text']);
+        $this->tap(1001, 'acc');
+        $this->assertContains('s:'.$wallet->id, $this->buttons());
+        $this->tap(1001, 's:'.$wallet->id);
+        $this->tap(1001, 'ok');
+        $this->assertSame('55000.00', $this->balanceOf($wallet));
+        $this->assertSame('300000.00', $this->balanceOf($gopay));
+
+        $this->say(1001, 'jajan 20rb tunai');
+        $this->assertStringContainsString('Dari: Dompet', $this->lastReply()['text']);
+        $this->tap(1001, 'no');
+
+        // Transfer: words before "ke" name the source, after it the destination (bank code matches too).
+        $this->say(1001, 'transfer ke gopay dari bca 100rb');
+        $this->assertStringContainsString('Dari: BCA Gaji', $this->lastReply()['text']);
+        $this->assertStringContainsString('Ke: GoPay', $this->lastReply()['text']);
+        $this->tap(1001, 'ok');
+        $this->assertSame('900000.00', $this->balanceOf($bca));
+        $this->assertLedgerIntact($user);
+    }
+
     public function test_loan_from_a_party_then_repayment_to_the_same_party(): void
     {
         $user = $this->linkedUser(1001);
         $bca = $this->openAccount($user, 'BCA', 'BANK', opening: 0);
 
         $this->say(1001, 'pinjam dari Pak Budi 2jt');
+        $this->assertContains('d:'.$bca->id, $this->buttons(), 'Even with one account the bot asks where the money goes.');
+        $this->tap(1001, 'd:'.$bca->id);
         $this->assertStringContainsString('Pinjaman diterima', $this->lastReply()['text']);
         $this->tap(1001, 'ok');
 
-        $this->say(1001, 'bayar hutang ke Budi 500rb');
+        $this->say(1001, 'bayar hutang ke Budi 500rb pakai BCA');
         $this->assertStringContainsString('Pembayaran hutang', $this->lastReply()['text']);
+        $this->assertStringContainsString('Dari: BCA', $this->lastReply()['text'], 'Named in the text: no question needed.');
         $this->tap(1001, 'ok');
 
         $intents = Transaction::query()->where('user_id', $user->id)->where('channel', 'TELEGRAM')->orderBy('id')->pluck('intent')->map->value->all();
@@ -249,18 +289,21 @@ final class TelegramBotTest extends TestCase
     public function test_bot_asks_for_a_missing_amount_and_intent_can_be_changed(): void
     {
         $user = $this->linkedUser(1001);
-        $this->openAccount($user, 'BCA', 'BANK', opening: 1_000_000);
+        $bca = $this->openAccount($user, 'BCA', 'BANK', opening: 1_000_000);
 
         $this->say(1001, 'bayar listrik');
         $this->assertStringContainsString('nominalnya berapa', $this->lastReply()['text']);
 
         $this->say(1001, '350rb');
+        $this->assertStringContainsString('Dibayar dari pos mana', $this->lastReply()['text']);
+        $this->tap(1001, 's:'.$bca->id);
         $this->assertStringContainsString('Rp', $this->lastReply()['text']);
         $this->assertContains('chg', $this->buttons());
 
         $this->tap(1001, 'chg');
         $this->assertContains('i:OTHER_INCOME', $this->buttons());
         $this->tap(1001, 'i:EXPENSE');
+        $this->tap(1001, 's:'.$bca->id);
         $this->tap(1001, 'ok');
 
         $tx = Transaction::query()->where('user_id', $user->id)->where('channel', 'TELEGRAM')->sole();

@@ -21,6 +21,7 @@ return [
     'amount_positive' => 'Amount must be greater than zero.',
     'transaction_not_found' => 'Transaction not found.',
     'not_reversible' => 'A transaction with status :status cannot be reversed.',
+    'not_editable' => 'This transaction cannot be edited. Reverse it and record it again.',
     'account_not_found' => 'Account not found or inactive.',
     'currency_mismatch_account' => 'Currency :currency does not match account :account.',
     'insufficient_funds' => 'Insufficient balance in :account.',

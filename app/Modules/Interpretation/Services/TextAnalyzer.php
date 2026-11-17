@@ -47,6 +47,8 @@ final class TextAnalyzer
         // --- Moving money between own accounts. ---
         // "transfer BCA ke BNI", "tf dari gopay ke bca": a bank/wallet on both sides (a person on either side is not internal).
         ['/\b(?:transfer|tf|trf|pindah(?:in)?)\s+(?:(?:uang|dana|saldo|duit)\s+)?(?:dari\s+)?(?:'.self::OWN_ACCOUNT_WORDS.')\s+ke\s+(?:'.self::OWN_ACCOUNT_WORDS.')\b/iu', TransactionIntent::INTERNAL_TRANSFER, null],
+        // "transfer ke GoPay dari BCA"
+        ['/\b(?:transfer|tf|trf|pindah(?:in)?)\s+(?:(?:uang|dana|saldo|duit)\s+)?ke\s+(?:'.self::OWN_ACCOUNT_WORDS.')\s+dari\s+(?:'.self::OWN_ACCOUNT_WORDS.')\b/iu', TransactionIntent::INTERNAL_TRANSFER, null],
         ['/\b(?:tarik\s+(?:tunai|cash)|setor\s+tunai|ambil\s+(?:uang|duit)\s+(?:di\s+)?atm|pindah(?:in)?\s+(?:dana|saldo|uang|duit)|top\s*up\s+(?:gopay|ovo|dana|shopeepay|e-?wallet)|ke\s+rekening\s+sendiri|antar\s+rekening)\b/iu', TransactionIntent::INTERNAL_TRANSFER, null],
 
         // --- Spending (before salary/activity: "bayar gaji karyawan", "beli bahan jualan"). ---

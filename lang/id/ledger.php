@@ -21,6 +21,7 @@ return [
     'amount_positive' => 'Nominal harus lebih besar dari nol.',
     'transaction_not_found' => 'Transaksi tidak ditemukan.',
     'not_reversible' => 'Transaksi berstatus :status tidak dapat dibatalkan.',
+    'not_editable' => 'Transaksi ini tidak bisa diubah. Batalkan lalu catat ulang.',
     'account_not_found' => 'Akun tidak ditemukan atau tidak aktif.',
     'currency_mismatch_account' => 'Mata uang :currency tidak sesuai dengan akun :account.',
     'insufficient_funds' => 'Saldo :account tidak mencukupi.',
