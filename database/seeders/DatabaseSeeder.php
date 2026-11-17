@@ -2,24 +2,22 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
-     * Seed the application's database.
+     * No default accounts with well-known passwords (ISO/IEC 27001 A.5.17).
+     * The dashboard login comes from DASHBOARD_ADMIN_* in .env via `php artisan dashboard:user`.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        if ((string) config('access.admin.email') === '' || (string) config('access.admin.password') === '') {
+            $this->command?->warn('No user seeded: set DASHBOARD_ADMIN_EMAIL and DASHBOARD_ADMIN_PASSWORD, then run php artisan dashboard:user.');
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+            return;
+        }
+
+        $this->command?->call('dashboard:user');
     }
 }

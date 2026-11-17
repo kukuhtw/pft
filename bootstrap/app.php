@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Identity\Console\DashboardUserCommand;
 use App\Modules\Ledger\Console\VerifyLedgerCommand;
 use App\Modules\Shared\Console\PruneFinanceDataCommand;
 use App\Modules\Shared\Exceptions\DomainException;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         VerifyLedgerCommand::class,
         PruneFinanceDataCommand::class,
         TelegramWebhookCommand::class,
+        DashboardUserCommand::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         // Behind Dokploy's Traefik (or any reverse proxy): trust X-Forwarded-* only from these

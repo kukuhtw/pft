@@ -37,7 +37,7 @@
       <h2>1. Daftar &amp; masuk</h2>
       <ol class="steps">
         <li>Buka aplikasi. Jika belum masuk, Anda diarahkan ke halaman <span class="ui">Masuk</span>.</li>
-        <li>Klik <span class="ui">Daftar</span>, lalu isi nama, email, dan kata sandi. Kata sandi minimal <strong>12 karakter</strong> dan harus berisi huruf besar, huruf kecil, dan angka.</li>
+        <li>Klik <span class="ui">Daftar</span>, lalu isi nama, email, dan kata sandi. Jika link Daftar tidak ada, pendaftaran ditutup oleh pengelola: minta akun ke pengelola, yang mengaturnya di <code>.env</code> lewat <code>php artisan dashboard:user</code>. Kata sandi minimal <strong>12 karakter</strong> dan harus berisi huruf besar, huruf kecil, dan angka.</li>
         <li>Setelah mendaftar, Anda langsung masuk ke <strong>Dashboard</strong>. Daftar kategori standar (Gaji, Makan, Transportasi, dan lain-lain) sudah dibuat otomatis.</li>
       </ol>
       <div class="note info"><p><b>Keamanan login:</b> setelah 5 kali salah kata sandi dalam satu menit, login dikunci sementara. Pesan kesalahan sengaja dibuat umum, jadi orang lain tidak bisa menebak email mana yang terdaftar.</p></div>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Http\Middleware\EnsureEmailAllowed;
 use App\Modules\Accounts\Models\FinancialAccount;
 use App\Modules\Accounts\Policies\FinancialAccountPolicy;
 use App\Modules\Interpretation\Contracts\TextInterpreter;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -31,6 +33,10 @@ class AppServiceProvider extends ServiceProvider
     {
         // Catch lazy-loading / silently-discarded attributes during development and tests.
         Model::shouldBeStrict(! $this->app->isProduction());
+
+        // Livewire actions (/livewire/update) re-run this route middleware, so a revoked email
+        // cannot keep acting from an already-open page.
+        Livewire::addPersistentMiddleware([EnsureEmailAllowed::class]);
 
         Gate::policy(FinancialAccount::class, FinancialAccountPolicy::class);
         Gate::policy(Transaction::class, TransactionPolicy::class);

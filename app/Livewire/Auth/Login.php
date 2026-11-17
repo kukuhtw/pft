@@ -6,6 +6,7 @@ namespace App\Livewire\Auth;
 
 use App\Models\User;
 use App\Modules\Audit\Services\AuditLogger;
+use App\Modules\Identity\Services\AccessPolicy;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -48,7 +49,8 @@ final class Login extends Component
             }
         }
 
-        if (! Auth::attempt(['email' => $email, 'password' => $this->password], $this->remember)) {
+        // An email outside AUTH_ALLOWED_EMAILS fails exactly like a wrong password (no enumeration).
+        if (! AccessPolicy::emailAllowed($email) || ! Auth::attempt(['email' => $email, 'password' => $this->password], $this->remember)) {
             foreach (array_keys($keys) as $key) {
                 RateLimiter::hit($key, 60);
             }
@@ -70,6 +72,6 @@ final class Login extends Component
 
     public function render(): View
     {
-        return view('livewire.auth.login');
+        return view('livewire.auth.login', ['registrationEnabled' => AccessPolicy::registrationEnabled()]);
     }
 }

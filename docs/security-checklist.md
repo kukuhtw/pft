@@ -10,6 +10,9 @@ Mapped to ISO/IEC 27001:2022 Annex A. Status: ✅ implemented (Phase 1) · 🟡 
 | A.8.5 | Password policy: ≥12 chars, mixed case, numbers | ✅ | `AppServiceProvider` `Password::defaults` |
 | A.8.5 | API tokens expire (`SANCTUM_TOKEN_EXPIRATION`, default 30 days); logout revokes | ✅ | `config/sanctum.php`, `AuthController` |
 | A.8.5 | Login rate limit 5/min per email+IP, 30/min per IP; no account enumeration | ✅ | `throttle:auth`, `AuthController::login` |
+| A.5.15 / A.5.16 | Sign-in control from `.env`: `AUTH_REGISTRATION_ENABLED=false` closes sign-up (web + API, 404); `AUTH_ALLOWED_EMAILS` limits sign-in/registration, and removed emails lose web sessions (incl. Livewire actions) and API access on the next request | ✅ | `AccessPolicy`, `EnsureEmailAllowed` |
+| A.5.17 | Dashboard account from `.env` (`dashboard:user`): DB keeps bcrypt only, login never reads `.env`; password policy enforced; password change revokes tokens, sessions and Telegram link; no default seeded account with a known password | ✅ | `DashboardUserCommand`, `DatabaseSeeder` |
+| A.5.17 | `DASHBOARD_ADMIN_PASSWORD` should hold a bcrypt hash, not plain text; `.env` must be readable only by the app user (chmod 600/640) | ⬜ | ops |
 | A.8.3 | Tenant isolation: owner-scoped look-ups, policies returning 404, posting service re-checks ledger ownership | ✅ | Policies, `LedgerPostingService::lockAccounts`, tests `test_12_*` |
 | A.8.11 | Data masking: only the last 4 digits of account/card numbers are accepted and stored | ✅ | `StoreFinancialAccountRequest` |
 | A.8.15 | Audit log for registration, login (incl. failures), account opening, posting, reversal | ✅ | `AuditLogger` (secrets redacted) |

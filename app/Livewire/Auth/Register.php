@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Auth;
 
 use App\Modules\Audit\Services\AuditLogger;
+use App\Modules\Identity\Services\AccessPolicy;
 use App\Modules\Identity\Services\UserProvisioningService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
@@ -27,8 +28,15 @@ final class Register extends Component
 
     public string $password_confirmation = '';
 
+    public function mount(): void
+    {
+        abort_unless(AccessPolicy::registrationEnabled(), 404);
+    }
+
     public function register(UserProvisioningService $provisioning, AuditLogger $audit): void
     {
+        abort_unless(AccessPolicy::registrationEnabled(), 404);
+
         $key = 'web-register:'.request()->ip();
         if (RateLimiter::tooManyAttempts($key, 5)) {
             throw ValidationException::withMessages(['email' => __('auth.throttle', ['seconds' => RateLimiter::availableIn($key), 'minutes' => 1])]);
@@ -41,6 +49,10 @@ final class Register extends Component
             'email' => ['required', 'string', 'email:rfc', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', Password::defaults(), 'confirmed'],
         ]);
+
+        if (! AccessPolicy::emailAllowed($data['email'])) {
+            throw ValidationException::withMessages(['email' => 'Email ini tidak diizinkan mendaftar. Hubungi pengelola aplikasi.']);
+        }
 
         $user = $provisioning->register($data['name'], $data['email'], $data['password']);
 

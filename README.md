@@ -112,6 +112,7 @@ curl -X POST /api/v1/transactions/transfer \
 |---|---|---|
 | `ledger:verify [--user=<public id>]` | Balanced journals, projection = Σlines, tenant isolation, transaction↔journal links | daily 02:00 WIB |
 | `finance:prune` | Delete expired idempotency keys and audit logs past retention | daily 03:00 WIB |
+| `dashboard:user [--hash]` | Create/update the dashboard login from `DASHBOARD_ADMIN_*`; `--hash` prints a bcrypt hash for `.env` | after changing `.env` |
 | `telegram:webhook {set\|delete\|info} [--url=]` | Register/remove/inspect the bot webhook and command menu | manual |
 
 ## Environment variables
@@ -125,6 +126,9 @@ See [`.env.example`](.env.example). App-specific variables:
 | `IDEMPOTENCY_TTL_HOURS` | `72` | How long idempotency keys are honoured |
 | `AUDIT_RETENTION_DAYS` | `2555` | Audit-log retention (0 = forever) |
 | `SANCTUM_TOKEN_EXPIRATION` | `43200` | API token lifetime in minutes |
+| `DASHBOARD_ADMIN_NAME` / `DASHBOARD_ADMIN_EMAIL` / `DASHBOARD_ADMIN_PASSWORD` | — | Dashboard login, synced to the DB by `php artisan dashboard:user`. Store a bcrypt hash (`dashboard:user --hash`) in single quotes |
+| `AUTH_REGISTRATION_ENABLED` | `true` (`.env.example`: `false`) | Self sign-up on `/register` and the API |
+| `AUTH_ALLOWED_EMAILS` | empty (no limit) | Comma-separated emails allowed to sign in/register; removing one ends its sessions and tokens on the next request |
 
 ## Project layout
 

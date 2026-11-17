@@ -7,6 +7,7 @@ namespace App\Modules\Identity\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Audit\Services\AuditLogger;
+use App\Modules\Identity\Services\AccessPolicy;
 use App\Modules\Identity\Services\UserProvisioningService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,12 +24,18 @@ final class AuthController extends Controller
 
     public function register(Request $request): JsonResponse
     {
+        abort_unless(AccessPolicy::registrationEnabled(), 404);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email:rfc', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', Password::defaults(), 'confirmed'],
             'device_name' => ['sometimes', 'string', 'max:64'],
         ]);
+
+        if (! AccessPolicy::emailAllowed($data['email'])) {
+            throw ValidationException::withMessages(['email' => ['This email is not allowed to register.']]);
+        }
 
         $user = $this->provisioning->register($data['name'], $data['email'], $data['password']);
         $token = $this->issueToken($user, $data['device_name'] ?? 'api');
@@ -47,7 +54,7 @@ final class AuthController extends Controller
         /** @var User|null $user */
         $user = User::query()->where('email', mb_strtolower(trim($data['email'])))->first();
 
-        if ($user === null || ! Hash::check($data['password'], $user->password)) {
+        if ($user === null || ! Hash::check($data['password'], $user->password) || ! AccessPolicy::emailAllowed($user->email)) {
             $this->audit->record('auth.login_failed', $user, null, []);
 
             // Same message whether or not the email exists (no account enumeration).

@@ -26,7 +26,9 @@
         </button>
     </form>
 
-    <p class="mt-4 text-center text-sm text-slate-500">
-        Belum punya akun? <a href="{{ route('register') }}" class="font-medium text-slate-900 underline">Daftar</a>
-    </p>
+    @if ($registrationEnabled)
+        <p class="mt-4 text-center text-sm text-slate-500">
+            Belum punya akun? <a href="{{ route('register') }}" class="font-medium text-slate-900 underline">Daftar</a>
+        </p>
+    @endif
 </div>
