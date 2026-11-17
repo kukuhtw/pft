@@ -30,6 +30,17 @@ COPY . .
 RUN composer dump-autoload --no-dev --classmap-authoritative --no-scripts \
     && rm -rf tests docs .git node_modules storage/logs/* bootstrap/cache/*.php
 
+########## assets: Vite/Tailwind build (public/build is git-ignored, so it must be built here) ##########
+FROM node:22-alpine AS assets
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY vite.config.js ./
+# Tailwind scans these for class names.
+COPY resources ./resources
+COPY app ./app
+RUN npm run build
+
 ########## runtime ##########
 FROM base AS runtime
 
@@ -41,6 +52,7 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint
 RUN chmod +x /usr/local/bin/entrypoint
 
 COPY --from=vendor --chown=www-data:www-data /var/www/html /var/www/html
+COPY --from=assets --chown=www-data:www-data /app/public/build /var/www/html/public/build
 
 # Never bake secrets into the image: .env is excluded by .dockerignore and supplied at runtime.
 RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/app/private bootstrap/cache \
