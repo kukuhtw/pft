@@ -81,7 +81,7 @@ Guarantees:
 | `/login`, `/register` | Session auth: 5 tries/min per email+IP, generic error, session regeneration, audit log |
 | `/dashboard` | Income/expense/net worth, money in by meaning (salary, activity, other, loan received, which is not income), debts per party, accounts, recent entries, **Catat transaksi** |
 | `/transactions` | Filter by intent, party, date; reverse an entry (mirror journal) |
-| `/accounts` | Bank, cash, e-wallet, card and loan accounts; loans/cards can name the party they are owed to |
+| `/accounts` | Bank, cash, e-wallet, card and loan accounts; loans/cards can name the party they are owed to. **Ubah**: rename an account, fix the opening balance (difference posted to Opening Balance Equity on the opening date) or set today's real balance (difference posted to Reconciliation Equity today, intent `BALANCE_ADJUSTMENT`). Neither is income or expense; both are audited (`account.updated`, `account.opening_balance_corrected`, `account.balance_adjusted`) |
 | `/budgets` | Monthly limit per expense category vs actual from the ledger (transfers, loans and repayments never count); ≥80% warning, >100% over; copy last month |
 | `/reports` | Period summary, 12-month income vs expense chart (with table view), income/expense by category, inflows by meaning, CSV export |
 | `/categories` | Add custom income/expense categories, rename, hide (history kept; fallback categories can't be hidden) |

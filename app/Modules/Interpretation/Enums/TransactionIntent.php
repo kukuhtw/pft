@@ -25,6 +25,14 @@ enum TransactionIntent: string
     case EXPENSE = 'EXPENSE';
     case INTERNAL_TRANSFER = 'INTERNAL_TRANSFER';
     case OPENING_BALANCE = 'OPENING_BALANCE';
+    /** Today's balance set to the real figure (e.g. from m-banking). Against equity: never income or expense. */
+    case BALANCE_ADJUSTMENT = 'BALANCE_ADJUSTMENT';
+
+    /** System-posted intents that a user cannot pick when recording an entry. */
+    public function isSystem(): bool
+    {
+        return in_array($this, [self::OPENING_BALANCE, self::BALANCE_ADJUSTMENT], true);
+    }
 
     public function label(): string
     {
@@ -37,6 +45,7 @@ enum TransactionIntent: string
             self::EXPENSE => 'Pengeluaran',
             self::INTERNAL_TRANSFER => 'Transfer antar akun sendiri',
             self::OPENING_BALANCE => 'Saldo awal',
+            self::BALANCE_ADJUSTMENT => 'Penyesuaian saldo',
         };
     }
 
@@ -49,7 +58,7 @@ enum TransactionIntent: string
             self::DEBT_REPAYMENT => 'debt-payment',
             self::EXPENSE => 'expense',
             self::INTERNAL_TRANSFER => 'transfer',
-            self::OPENING_BALANCE => null,
+            self::OPENING_BALANCE, self::BALANCE_ADJUSTMENT => null,
         };
     }
 
@@ -67,7 +76,7 @@ enum TransactionIntent: string
             self::DEBT_REPAYMENT => $type === TransactionType::LIABILITY_PAYMENT,
             self::EXPENSE => $type === TransactionType::EXPENSE,
             self::INTERNAL_TRANSFER => $type === TransactionType::INTERNAL_TRANSFER,
-            self::OPENING_BALANCE => $type === TransactionType::ADJUSTMENT,
+            self::OPENING_BALANCE, self::BALANCE_ADJUSTMENT => $type === TransactionType::ADJUSTMENT,
         };
     }
 }

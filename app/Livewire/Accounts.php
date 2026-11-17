@@ -37,6 +37,91 @@ final class Accounts extends Component
 
     public ?string $flash = null;
 
+    /** Account being edited (owner re-checked on every action). */
+    public ?string $editingId = null;
+
+    public string $editName = '';
+
+    public string $editLast4 = '';
+
+    /** none | opening | today */
+    public string $balanceMode = 'none';
+
+    public string $targetBalance = '';
+
+    public function edit(string $id): void
+    {
+        $account = $this->ownedAccount($id);
+        $this->resetErrorBag();
+        $this->flash = null;
+        $this->editingId = $account->id;
+        $this->editName = $account->name;
+        $this->editLast4 = (string) $account->account_number_last4;
+        $this->balanceMode = 'none';
+        $this->targetBalance = '';
+    }
+
+    public function cancelEdit(): void
+    {
+        $this->reset(['editingId', 'editName', 'editLast4', 'balanceMode', 'targetBalance']);
+        $this->resetErrorBag();
+    }
+
+    public function saveEdit(FinancialAccountService $accounts): void
+    {
+        $user = $this->user();
+        $account = $this->ownedAccount((string) $this->editingId);
+
+        $this->validate([
+            'editName' => ['required', 'string', 'max:128', Rule::unique('financial_accounts', 'name')->where('user_id', $user->id)->ignore($account->id)],
+            'editLast4' => ['nullable', 'regex:/^\d{4}$/'],
+            'balanceMode' => ['required', Rule::in(['none', 'opening', 'today'])],
+            'targetBalance' => [$this->balanceMode === 'none' ? 'nullable' : 'required', 'nullable', 'string', 'max:32'],
+        ], [], ['editName' => 'nama akun', 'editLast4' => '4 digit terakhir', 'targetBalance' => 'saldo']);
+
+        $target = null;
+        if ($this->balanceMode !== 'none') {
+            $target = MoneyInput::parse($this->targetBalance, $account->currency_code);
+            // MoneyInput only accepts positive amounts; a balance may legitimately be zero (debt paid off, empty wallet).
+            if ($target === null && preg_match('/^(rp\.?\s*)?0+([.,]0+)?$/i', trim($this->targetBalance)) === 1) {
+                $target = Money::zero($account->currency_code);
+            }
+            if ($target === null || $target->isNegative()) {
+                $this->addError('targetBalance', 'Nominal tidak valid. Contoh: 0, 50000, 1.500.000, 1,5jt.');
+
+                return;
+            }
+        }
+
+        $messages = [];
+        try {
+            DB::transaction(function () use ($accounts, $user, $account, $target, &$messages): void {
+                $newName = trim($this->editName);
+                $newLast4 = $this->editLast4 !== '' ? $this->editLast4 : null;
+                if ($newName !== $account->name || $newLast4 !== $account->account_number_last4) {
+                    $accounts->rename($user, $account, $newName, $newLast4);
+                    $messages[] = 'nama/nomor disimpan';
+                }
+
+                if ($target !== null) {
+                    $posted = $this->balanceMode === 'opening'
+                        ? $accounts->correctOpeningBalance($user, $account, $target)
+                        : $accounts->adjustBalanceToday($user, $account, $target);
+                    $messages[] = $posted === null
+                        ? 'saldo sudah sesuai, tidak ada yang dicatat'
+                        : ($this->balanceMode === 'opening' ? 'saldo awal dikoreksi' : 'saldo disesuaikan').' ('.Money::fromDatabase($posted->getRawOriginal('amount'), $posted->currency_code)->format().')';
+                }
+            });
+        } catch (DomainException $e) {
+            $this->addError('saveEdit', $e->getMessage());
+
+            return;
+        }
+
+        $this->flash = 'Akun "'.trim($this->editName).'": '.($messages === [] ? 'tidak ada perubahan' : implode(', ', $messages)).'.';
+        $this->cancelEdit();
+    }
+
     public function create(FinancialAccountService $accounts, CounterpartyService $counterparties): void
     {
         $user = $this->user();
@@ -83,8 +168,11 @@ final class Accounts extends Component
     public function render(): View
     {
         return view('livewire.accounts', [
-            'accounts' => FinancialAccount::query()->with(['ledgerAccount', 'institution', 'counterparty'])
+            'accounts' => FinancialAccount::query()->with(['ledgerAccount', 'accountType', 'institution', 'counterparty'])
                 ->where('user_id', $this->user()->id)->orderBy('name')->get(),
+            'editing' => $this->editingId !== null
+                ? FinancialAccount::query()->with('ledgerAccount')->where('user_id', $this->user()->id)->find($this->editingId)
+                : null,
             'types' => AccountType::query()->where('is_active', true)->orderBy('name')->get(),
             'institutions' => FinancialInstitution::query()->where('is_active', true)->orderBy('name')->get(),
             'isLiability' => $this->selectedTypeIsLiability(),
@@ -94,6 +182,12 @@ final class Accounts extends Component
     private function selectedTypeIsLiability(): bool
     {
         return AccountType::query()->find($this->accountType)?->ledger_class === LedgerAccountClass::LIABILITY;
+    }
+
+    /** Owner-scoped lookup: another user's account id behaves exactly like a missing one. */
+    private function ownedAccount(string $id): FinancialAccount
+    {
+        return FinancialAccount::query()->with('ledgerAccount')->where('user_id', $this->user()->id)->findOrFail($id);
     }
 
     private function user(): User

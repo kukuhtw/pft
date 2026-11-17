@@ -28,6 +28,8 @@ return [
     'account_type_invalid' => 'Invalid account type :type.',
     'institution_invalid' => 'Unknown financial institution :code.',
     'opening_balance_negative' => 'Opening balance cannot be negative.',
+    'balance_negative' => 'Balance cannot be negative.',
+    'account_name_required' => 'Account name is required.',
     'counterparty_requires_liability' => 'A counterparty can only be linked to a loan or credit-card account.',
     'debt_account_not_liability' => 'Account :account is not a debt (loan/credit card) account.',
     'debt_party_required' => 'Name the lender or choose a debt account.',

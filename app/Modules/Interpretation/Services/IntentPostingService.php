@@ -41,14 +41,14 @@ final readonly class IntentPostingService
             TransactionIntent::DEBT_REPAYMENT => $this->debts->debtPayment($user, $input),
             TransactionIntent::EXPENSE => $this->transactions->recordExpense($user, $input),
             TransactionIntent::INTERNAL_TRANSFER => $this->transactions->recordTransfer($user, $input),
-            TransactionIntent::OPENING_BALANCE => throw new \LogicException('Opening balances are posted when an account is opened.'),
+            TransactionIntent::OPENING_BALANCE, TransactionIntent::BALANCE_ADJUSTMENT => throw new \LogicException('Balance corrections are posted from the Accounts page.'),
         };
     }
 
     /** @return list<TransactionIntent> */
     public static function selectableIntents(): array
     {
-        return array_values(array_filter(TransactionIntent::cases(), static fn (TransactionIntent $i): bool => $i !== TransactionIntent::OPENING_BALANCE));
+        return array_values(array_filter(TransactionIntent::cases(), static fn (TransactionIntent $i): bool => ! $i->isSystem()));
     }
 
     public static function needsSource(?TransactionIntent $i): bool

@@ -62,7 +62,7 @@ final class PostingClassifier
             TransactionType::LIABILITY_DRAWDOWN => [TransactionIntent::LOAN_RECEIVED, Confidence::HIGH],
             TransactionType::LIABILITY_PAYMENT => [TransactionIntent::DEBT_REPAYMENT, Confidence::HIGH],
             TransactionType::INTERNAL_TRANSFER => [TransactionIntent::INTERNAL_TRANSFER, Confidence::HIGH],
-            TransactionType::ADJUSTMENT => [TransactionIntent::OPENING_BALANCE, Confidence::HIGH],
+            TransactionType::ADJUSTMENT => [($input->metadata['adjustment'] ?? null) === 'balance' ? TransactionIntent::BALANCE_ADJUSTMENT : TransactionIntent::OPENING_BALANCE, Confidence::HIGH],
         };
 
         if ($category !== null) {
@@ -155,7 +155,7 @@ final class PostingClassifier
             }
         }
 
-        if (in_array($intent, [TransactionIntent::INTERNAL_TRANSFER, TransactionIntent::OPENING_BALANCE], true)) {
+        if ($intent === TransactionIntent::INTERNAL_TRANSFER || $intent?->isSystem() === true) {
             return null; // the other side is the user's own account
         }
 
