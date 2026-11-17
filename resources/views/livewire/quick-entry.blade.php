@@ -31,8 +31,8 @@
 
             @foreach ($warnings as $warning)
                 <p class="rounded-md bg-yellow-50 px-3 py-2 text-sm text-yellow-800">⚠ {{ match ($warning) {
-                    'LENDING_OUT_NOT_SUPPORTED' => 'Sepertinya Anda meminjamkan uang ke orang lain (piutang). Ini belum didukung, jadi catat sebagai pengeluaran atau transfer dulu.',
-                    'RECEIVABLE_COLLECTION_NOT_SUPPORTED' => 'Sepertinya ini pengembalian piutang. Ini belum didukung, jadi catat sebagai pemasukan lainnya dulu.',
+                    'LENDING_OUT_NOT_SUPPORTED' => 'Sepertinya Anda meminjamkan uang ke orang lain (piutang). Ini bukan pengeluaran: buat akun jenis Piutang di menu Akun (mis. "Piutang Andi"), lalu pilih jenis Transfer dari rekening Anda ke akun Piutang itu.',
+                    'RECEIVABLE_COLLECTION_NOT_SUPPORTED' => 'Sepertinya ini pengembalian piutang. Ini bukan pemasukan: pilih jenis Transfer dari akun Piutang ke rekening yang menerima uangnya.',
                     'NO_OPEN_DEBT_FOR_COUNTERPARTY' => 'Tidak ada hutang aktif ke pihak ini. Periksa nama pihak atau pilih akun hutang.',
                     'CHOOSE_DEBT_ACCOUNT' => 'Pihak ini punya lebih dari satu hutang, jadi pilih hutang yang dibayar.',
                     'INTENT_UNKNOWN' => 'Teks belum dikenali. Pilih jenis transaksi secara manual.',

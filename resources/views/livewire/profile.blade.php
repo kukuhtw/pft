@@ -45,7 +45,7 @@
         </div>
 
         @if (! $telegramEnabled)
-            <p class="text-sm text-slate-500">Bot Telegram belum diaktifkan oleh pengelola aplikasi.</p>
+            <p class="text-sm text-slate-500">Bot Telegram belum diaktifkan oleh pengelola aplikasi. <a href="{{ route('telegram.guide') }}" wire:navigate class="underline">Lihat panduan setup</a>.</p>
         @elseif ($telegramLink)
             <p class="mb-3 text-sm text-slate-500">
                 Terhubung sejak {{ $telegramLink->linked_at->timezone(config('finance.display_timezone'))->translatedFormat('d M Y H:i') }}.
@@ -69,7 +69,7 @@
             <button type="button" wire:click="createTelegramCode" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">{{ $telegramCode ? 'Buat kode baru' : 'Buat kode' }}</button>
             @error('telegram') <p class="mt-2 text-sm text-red-600">{{ $message }}</p> @enderror
         @endif
-        <p class="mt-3 text-xs text-slate-500">Pesan Telegram melewati server Telegram (pihak ketiga). Jangan kirim PIN, OTP, kata sandi, atau nomor kartu lengkap.</p>
+        <p class="mt-3 text-xs text-slate-500">Pesan Telegram melewati server Telegram (pihak ketiga). Jangan kirim PIN, OTP, kata sandi, atau nomor kartu lengkap. <a href="{{ route('telegram.guide') }}" wire:navigate class="underline">Panduan Telegram</a></p>
     </section>
 
     <section class="rounded-lg border border-slate-200 bg-white p-5">

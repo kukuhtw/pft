@@ -35,8 +35,23 @@ final class WebDashboardTest extends TestCase
     public function test_guests_are_sent_to_login_and_login_page_renders(): void
     {
         $this->get('/dashboard')->assertRedirect('/login');
-        $this->get('/')->assertRedirect('/dashboard');
         $this->get('/login')->assertOk()->assertSee('Masuk');
+    }
+
+    public function test_landing_page_explains_the_money_rules_and_self_hosting(): void
+    {
+        $this->get('/')->assertOk()
+            ->assertSee('Transfer antar rekening sendiri bukan pengeluaran')
+            ->assertSee('Pinjaman yang Anda terima bukan pemasukan')
+            ->assertSee('Meminjamkan uang ke orang lain bukan pengeluaran')
+            ->assertSee('Rp30 ribu per bulan', false)
+            ->assertSee(route('register'));
+
+        config(['access.registration_enabled' => false]);
+        $this->get('/')->assertOk()->assertDontSee('href="'.route('register').'"', false);
+
+        $this->actingAs($this->provisionedUser());
+        $this->get('/')->assertOk()->assertSee('Buka dashboard');
     }
 
     public function test_login_success_and_generic_failure_message(): void

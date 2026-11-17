@@ -20,6 +20,17 @@ final class AccessPolicy
         return array_values(array_unique(array_filter($emails, static fn (string $e): bool => $e !== '')));
     }
 
+    /**
+     * The dashboard admin is the DASHBOARD_ADMIN_EMAIL account. Fail closed: no email configured = no admin,
+     * so admin-only actions (e.g. registering the Telegram webhook from the web) stay on the CLI.
+     */
+    public static function isAdmin(?string $email): bool
+    {
+        $admin = mb_strtolower(trim((string) config('access.admin.email', '')));
+
+        return $admin !== '' && $admin === mb_strtolower(trim((string) $email));
+    }
+
     public static function emailAllowed(?string $email): bool
     {
         $allowed = self::allowedEmails();
