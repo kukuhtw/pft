@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire;
 
 use App\Models\User;
+use App\Modules\Categories\Models\TransactionCategory;
 use App\Modules\Counterparties\Models\Counterparty;
 use App\Modules\Interpretation\Enums\TransactionIntent;
 use App\Modules\Shared\Exceptions\DomainException;
@@ -32,6 +33,9 @@ final class Transactions extends Component
     public string $counterpartyId = '';
 
     #[Url]
+    public string $categoryId = '';
+
+    #[Url]
     public string $dateFrom = '';
 
     #[Url]
@@ -41,7 +45,7 @@ final class Transactions extends Component
 
     public function updated(string $property): void
     {
-        if (in_array($property, ['intent', 'counterpartyId', 'dateFrom', 'dateTo'], true)) {
+        if (in_array($property, ['intent', 'counterpartyId', 'categoryId', 'dateFrom', 'dateTo'], true)) {
             $this->resetPage();
         }
     }
@@ -71,6 +75,7 @@ final class Transactions extends Component
             ->where('user_id', $user->id)
             ->when($intent, static fn (Builder $q, TransactionIntent $i) => $q->where('intent', $i->value))
             ->when(Str::isUlid($this->counterpartyId) ? $this->counterpartyId : null, static fn (Builder $q, string $c) => $q->where('counterparty_id', $c))
+            ->when(Str::isUlid($this->categoryId) ? $this->categoryId : null, static fn (Builder $q, string $c) => $q->where('category_id', $c))
             ->when($date($this->dateFrom), static fn (Builder $q, string $d) => $q->where('transaction_date', '>=', $d))
             ->when($date($this->dateTo), static fn (Builder $q, string $d) => $q->where('transaction_date', '<=', $d))
             ->orderByDesc('transaction_date')
@@ -80,6 +85,7 @@ final class Transactions extends Component
         return view('livewire.transactions', [
             'transactions' => $transactions,
             'intents' => TransactionIntent::cases(),
+            'categories' => TransactionCategory::query()->where('user_id', $user->id)->orderBy('kind')->orderBy('name')->get(),
             'counterparties' => Counterparty::query()->where('user_id', $user->id)->orderBy('name')->get(),
             'posted' => TransactionStatus::POSTED,
         ]);

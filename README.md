@@ -11,7 +11,7 @@ A personal-finance ledger for Indonesian users (IDR, Bahasa Indonesia by default
 | Phase | Scope | Status |
 |---|---|---|
 | 1 Foundation | Auth, migrations, accounts, chart of accounts, double-entry ledger, income/expense/transfer, reversal, idempotency, summary report, tests | ✅ Implemented and tested (SQLite); MySQL run pending, see below |
-| 2 Dashboard | Blade/Livewire UI, categories CRUD, budgets, reports | 🟡 Login/register, dashboard, quick entry, transactions, accounts done; categories CRUD, budgets, reports pending |
+| 2 Dashboard | Blade/Livewire UI, categories CRUD, budgets, reports | ✅ Implemented and tested; account deletion (UU PDP) still pending, see security checklist |
 | 3 AI & Telegram | NL parser, confirmation flow, Telegram bot | ⬜ |
 | 4 Extension & Imports | Chrome extension, CSV/XLSX/PDF import, reconciliation | ⬜ |
 | 5 Advanced finance | Card statements, installments, recurring, forecasting | ⬜ |
@@ -82,6 +82,10 @@ Guarantees:
 | `/dashboard` | Income/expense/net worth, money in by meaning (salary, activity, other, loan received, which is not income), debts per party, accounts, recent entries, **Catat transaksi** |
 | `/transactions` | Filter by intent, party, date; reverse an entry (mirror journal) |
 | `/accounts` | Bank, cash, e-wallet, card and loan accounts; loans/cards can name the party they are owed to |
+| `/budgets` | Monthly limit per expense category vs actual from the ledger (transfers, loans and repayments never count); ≥80% warning, >100% over; copy last month |
+| `/reports` | Period summary, 12-month income vs expense chart (with table view), income/expense by category, inflows by meaning, CSV export |
+| `/categories` | Add custom income/expense categories, rename, hide (history kept; fallback categories can't be hidden) |
+| `/profile` | Change name/password (password change revokes API tokens and other sessions), download all my data (JSON) |
 
 **Catat transaksi** takes free text ("pinjam dari Pak Budi 2jt"), shows the app's interpretation and lets the user correct it before saving. It posts through the same services as the API (`Channel::WEB`, one idempotency key per proposal). Components live in `app/Livewire`, views in `resources/views/livewire`.
 
@@ -128,7 +132,8 @@ app/Modules/
   Debts/         Loan received / debt payment per party (resolves or opens the LOAN account)
   Interpretation/ Intent enum, text pattern engine, posting classifier, /interpret proposals
   Transactions/  Income, expense, transfer, reversal, idempotency
-  Reporting/     Financial summary
+  Budgets/       Monthly limit per expense category, status vs ledger actuals, copy month
+  Reporting/     Financial summary, per-category breakdown, 12-month trend
   Audit/         Audit trail
 docs/            Architecture, OpenAPI, security checklist, Ubuntu deployment
 tests/           Unit, Feature (ledger, accounting rules, API), Integration (salary simulation, concurrency)

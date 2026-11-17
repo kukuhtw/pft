@@ -6,7 +6,7 @@
     @endif
     @error('reverse') <div class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{{ $message }}</div> @enderror
 
-    <div class="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
         <label class="block text-sm">
             <span class="mb-1 block font-medium">Jenis</span>
             <select wire:model.live="intent" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2">
@@ -22,6 +22,15 @@
                 <option value="">Semua</option>
                 @foreach ($counterparties as $c)
                     <option value="{{ $c->id }}">{{ $c->name }}</option>
+                @endforeach
+            </select>
+        </label>
+        <label class="block text-sm">
+            <span class="mb-1 block font-medium">Kategori</span>
+            <select wire:model.live="categoryId" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2">
+                <option value="">Semua</option>
+                @foreach ($categories as $c)
+                    <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->kind->value === 'INCOME' ? 'masuk' : 'keluar' }})</option>
                 @endforeach
             </select>
         </label>

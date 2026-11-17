@@ -32,7 +32,7 @@
         </div>
         <p class="truncate text-xs text-slate-500">
             {{ $t->transaction_date->translatedFormat('d M Y') }}
-            · {{ $t->sourceAccount?->name ?? $t->category?->name }} → {{ $t->destinationAccount?->name ?? $t->category?->name }}
+            · {{ implode(' → ', array_filter([$t->sourceAccount?->name ?? $t->category?->name, $t->destinationAccount?->name ?? $t->category?->name])) }}
             @if ($t->description) · {{ $t->description }} @endif
         </p>
     </div>

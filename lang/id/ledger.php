@@ -34,4 +34,9 @@ return [
     'debt_account_ambiguous' => ':party memiliki lebih dari satu hutang aktif. Pilih akun hutang (debt_account_id).',
     'debt_account_not_found' => 'Tidak ada hutang aktif kepada :party.',
     'debt_cash_account_must_be_asset' => 'Akun :account harus berupa rekening/dompet, bukan akun hutang.',
+    'budget_period_invalid' => 'Periode budget harus berformat TTTT-BB.',
+    'budget_category_invalid' => 'Budget hanya dapat dibuat untuk kategori pengeluaran Anda.',
+    'category_fallback_required' => 'Kategori cadangan (Pendapatan/Pengeluaran Lainnya) tidak dapat dinonaktifkan.',
+    'category_name_invalid' => 'Nama kategori wajib diisi (maksimal 128 karakter).',
+    'category_name_taken' => 'Kategori ":name" sudah ada.',
 ];

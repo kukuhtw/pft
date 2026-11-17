@@ -4,6 +4,17 @@
 @source '../../storage/framework/views/*.php';
 
 @theme {
+    /* Data-viz roles (validated: CVD ΔE 24.7, normal ΔE 33.6, ≥3:1 on surface). Income = slot 1, expense = slot 2. */
+    --color-series-income: #2a78d6;
+    --color-series-expense: #eb6834;
+    /* Status — never reused as a series; always paired with an icon + label. */
+    --color-status-good: #0ca30c;
+    --color-status-warning: #fab219;
+    --color-status-critical: #d03b3b;
+    --color-viz-grid: #e1e0d9;
+    --color-viz-axis: #c3c2b7;
+    --color-viz-muted: #898781;
+
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }

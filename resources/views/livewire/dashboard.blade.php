@@ -4,7 +4,7 @@
             <h1 class="text-2xl font-semibold tracking-tight">Dashboard</h1>
             <p class="text-sm text-slate-500">{{ $from->translatedFormat('d M Y') }} – {{ $to->translatedFormat('d M Y') }}</p>
         </div>
-        <div class="flex rounded-md border border-slate-300 bg-white p-0.5 text-sm">
+        <div class="flex flex-wrap rounded-md border border-slate-300 bg-white p-0.5 text-sm">
             @foreach (['this_month' => 'Bulan ini', 'last_month' => 'Bulan lalu', 'this_year' => 'Tahun ini'] as $key => $label)
                 <button wire:click="$set('period', '{{ $key }}')"
                         @class(['rounded px-3 py-1', 'bg-slate-900 text-white' => $period === $key, 'text-slate-600 hover:bg-slate-100' => $period !== $key])>{{ $label }}</button>
@@ -28,6 +28,29 @@
             </div>
         @endforeach
     </section>
+
+    @if ($budgetAlerts !== [])
+        <section class="rounded-lg border border-slate-200 bg-white p-5" aria-labelledby="budget-alerts">
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <h2 id="budget-alerts" class="font-semibold">Budget bulan ini perlu perhatian</h2>
+                <a href="{{ route('budgets') }}" wire:navigate class="text-sm text-slate-500 hover:underline">Lihat budget</a>
+            </div>
+            <ul class="grid gap-3 sm:grid-cols-2">
+                @foreach ($budgetAlerts as $row)
+                    <li class="text-sm">
+                        <div class="mb-1 flex justify-between gap-2">
+                            <span class="font-medium">{{ $row['category']->name }}</span>
+                            <span class="tabular-nums text-slate-600">{{ $row['actual']->format() }} / {{ $row['budget']->format() }}</span>
+                        </div>
+                        <div class="h-2 overflow-hidden rounded bg-slate-100">
+                            <div @class(['h-2 rounded-r', 'bg-status-critical' => $row['state'] === 'over', 'bg-status-warning' => $row['state'] === 'warning']) style="width: {{ min(100, $row['percent']) }}%"></div>
+                        </div>
+                        <p class="mt-0.5 text-xs text-slate-600">{{ $row['state'] === 'over' ? '✕ Melebihi budget' : '⚠ Hampir habis' }} · {{ $row['percent'] }}%</p>
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
 
     <livewire:quick-entry />
 

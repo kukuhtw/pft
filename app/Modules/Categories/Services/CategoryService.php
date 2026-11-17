@@ -10,6 +10,7 @@ use App\Modules\Categories\Exceptions\CategoryNotUsableException;
 use App\Modules\Categories\Models\TransactionCategory;
 use App\Modules\Ledger\Services\ChartOfAccountsService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 final class CategoryService
 {
@@ -76,6 +77,80 @@ final class CategoryService
                 'is_active' => true,
             ]);
         });
+    }
+
+    /** Fallback buckets used when a client sends no category; they can never be deactivated. */
+    public const array FALLBACK_CODES = ['OTHER_INCOME', 'OTHER_EXPENSE'];
+
+    /** A user-defined category. The code is derived from the name and made unique per user. */
+    public function createCustom(User $user, CategoryKind $kind, string $name, string $currency = 'IDR'): TransactionCategory
+    {
+        $name = trim($name);
+        $this->assertNameFree($user, $kind, $name);
+
+        $base = 'C_'.(Str::of($name)->ascii()->upper()->replaceMatches('/[^A-Z0-9]+/', '_')->trim('_')->limit(36, '')->toString() ?: 'CATEGORY');
+        $code = $base;
+        for ($i = 2; TransactionCategory::query()->where('user_id', $user->id)->where('code', $code)->exists(); $i++) {
+            $code = $base.'_'.$i;
+        }
+
+        return $this->create($user, $kind, $name, $code, null, false, $currency);
+    }
+
+    /** Rename the display name (category + its ledger account). The code and the history stay. */
+    public function rename(User $user, string $categoryId, string $name): TransactionCategory
+    {
+        $category = $this->owned($user, $categoryId);
+        $name = trim($name);
+        $this->assertNameFree($user, $category->kind, $name, $category->id);
+
+        return DB::transaction(function () use ($category, $name): TransactionCategory {
+            $category->update(['name' => $name]);
+            $category->ledgerAccount()->update(['name' => $name]);
+
+            return $category;
+        });
+    }
+
+    /**
+     * Hide a category from new entries (or show it again). Its ledger account stays ACTIVE so past
+     * entries keep reporting and can still be reversed.
+     */
+    public function setActive(User $user, string $categoryId, bool $active): TransactionCategory
+    {
+        $category = $this->owned($user, $categoryId);
+
+        if (! $active && in_array($category->code, self::FALLBACK_CODES, true)) {
+            throw new CategoryNotUsableException(__('ledger.category_fallback_required'));
+        }
+
+        $category->update(['is_active' => $active]);
+
+        return $category;
+    }
+
+    private function owned(User $user, string $categoryId): TransactionCategory
+    {
+        return TransactionCategory::query()->where('user_id', $user->id)->whereKey($categoryId)->first()
+            ?? throw new CategoryNotUsableException(__('ledger.category_not_found'));
+    }
+
+    private function assertNameFree(User $user, CategoryKind $kind, string $name, ?string $exceptId = null): void
+    {
+        if ($name === '' || mb_strlen($name) > 128) {
+            throw new CategoryNotUsableException(__('ledger.category_name_invalid'));
+        }
+
+        $taken = TransactionCategory::query()
+            ->where('user_id', $user->id)
+            ->where('kind', $kind->value)
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->when($exceptId, static fn ($q, string $id) => $q->whereKeyNot($id))
+            ->exists();
+
+        if ($taken) {
+            throw new CategoryNotUsableException(__('ledger.category_name_taken', ['name' => $name]));
+        }
     }
 
     /**

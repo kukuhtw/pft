@@ -14,7 +14,12 @@ Mapped to ISO/IEC 27001:2022 Annex A. Status: ✅ implemented (Phase 1) · 🟡 
 | A.8.11 | Data masking: only the last 4 digits of account/card numbers are accepted and stored | ✅ | `StoreFinancialAccountRequest` |
 | A.8.15 | Audit log for registration, login (incl. failures), account opening, posting, reversal | ✅ | `AuditLogger` (secrets redacted) |
 | A.8.10 | Retention: idempotency keys TTL, audit-log retention (`AUDIT_RETENTION_DAYS`) | ✅ | `finance:prune` (scheduled daily) |
-| A.8.10 | User account deletion / data export workflow (UU PDP rights) | ⬜ | Planned Phase 2. Ledger rows use `RESTRICT`, so deletion needs anonymisation |
+| A.8.10 | Data export (UU PDP right of access/portability): full JSON download + transaction CSV, audit-logged, rate-limited | ✅ | `ExportController` |
+| A.8.10 | User account deletion (UU PDP right to erasure) | ⬜ | Needs a decision: ledger rows are immutable and use `RESTRICT`, so erasure means anonymising the user and counterparties while keeping balanced books |
+| A.8.28 | CSV exports neutralise spreadsheet formula injection (`=`, `+`, `-`, `@` prefixed with `'`) | ✅ | `ExportController::cell` |
+| A.5.17 / A.8.5 | Password change requires the current password, revokes all API tokens and other DB sessions, and regenerates the session | ✅ | `Livewire\Profile` |
+| A.8.5 | Web login: 5/min per email+IP, 30/min per IP, generic error, session regeneration, audit log | ✅ | `Livewire\Auth\Login` |
+| A.8.24 | Production must set `SESSION_SECURE_COOKIE=true` behind HTTPS | ⬜ | ops |
 | A.8.28 | Input validation on all endpoints; no float money; no raw SQL interpolation | ✅ | FormRequests, `MoneyAmount`, query builder bindings |
 | A.8.28 | CSRF (web routes) | ✅ | Laravel default (web middleware) |
 | A.8.28 | XSS: JSON API only in Phase 1; Blade auto-escaping for Phase 2 UI | 🟡 | — |

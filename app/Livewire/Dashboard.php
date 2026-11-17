@@ -7,6 +7,7 @@ namespace App\Livewire;
 use App\Models\User;
 use App\Modules\Accounts\Enums\AccountStatus;
 use App\Modules\Accounts\Models\FinancialAccount;
+use App\Modules\Budgets\Services\BudgetService;
 use App\Modules\Interpretation\Enums\TransactionIntent;
 use App\Modules\Reporting\Services\DashboardService;
 use App\Modules\Reporting\Services\FinancialSummaryService;
@@ -29,13 +30,19 @@ final class Dashboard extends Component
     #[On('entry-posted')]
     public function refreshAfterPosting(): void {}
 
-    public function render(FinancialSummaryService $summaries, DashboardService $dashboard): View
+    public function render(FinancialSummaryService $summaries, DashboardService $dashboard, BudgetService $budgets): View
     {
         /** @var User $user */
         $user = auth()->user();
         [$from, $to] = $this->range();
+        $thisMonth = CarbonImmutable::now((string) config('finance.display_timezone'))->format('Y-m');
 
         return view('livewire.dashboard', [
+            // This month's budgets that need attention (≥ warning threshold), worst first.
+            'budgetAlerts' => array_slice(array_values(array_filter(
+                $budgets->status($user, $thisMonth)['rows'],
+                static fn (array $r): bool => in_array($r['state'], ['warning', 'over'], true),
+            )), 0, 4),
             'from' => $from,
             'to' => $to,
             'summary' => $summaries->summarize($user, $from, $to),

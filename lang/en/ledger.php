@@ -34,4 +34,9 @@ return [
     'debt_account_ambiguous' => ':party has more than one open debt. Choose one with debt_account_id.',
     'debt_account_not_found' => 'There is no open debt owed to :party.',
     'debt_cash_account_must_be_asset' => 'Account :account must be a bank/wallet/cash account, not a debt account.',
+    'budget_period_invalid' => 'Budget period must be YYYY-MM.',
+    'budget_category_invalid' => 'Budgets can only be set on your own expense categories.',
+    'category_fallback_required' => 'The fallback categories (Other income/expense) cannot be deactivated.',
+    'category_name_invalid' => 'Category name is required (max 128 characters).',
+    'category_name_taken' => 'Category ":name" already exists.',
 ];
