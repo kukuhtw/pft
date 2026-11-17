@@ -24,7 +24,9 @@
                 <span class="text-slate-500">· {{ $t->activity }}</span>
             @endif
             @if ($reversed)
-                <span class="rounded bg-slate-200 px-1.5 py-0.5 text-xs">dibatalkan</span>
+                <span class="rounded bg-slate-200 px-1.5 py-0.5 text-xs">{{ $t->reversal_reason === \App\Modules\Transactions\Services\TransactionAmendmentService::REVERSAL_REASON ? 'diubah (versi lama)' : 'dibatalkan' }}</span>
+            @elseif (isset($t->metadata['amends']))
+                <span class="rounded bg-sky-100 px-1.5 py-0.5 text-xs text-sky-800">diedit</span>
             @endif
             @foreach ($warnings as $warning)
                 <span class="rounded bg-yellow-100 px-1.5 py-0.5 text-xs text-yellow-800" title="Teks deskripsi tidak sesuai jenis transaksi">⚠ {{ $warning }}</span>

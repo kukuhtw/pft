@@ -32,6 +32,7 @@ final class TextAnalyzerTest extends TestCase
         yield 'paying salary is an expense' => ['bayar gaji karyawan', TransactionIntent::EXPENSE, null, null, null, null];
         yield 'bank to bank transfer' => ['transfer BCA ke BNI 2jt', TransactionIntent::INTERNAL_TRANSFER, null, null, null, '2000000.00'];
         yield 'wallet top-up from bank' => ['tf dari bca ke gopay 100rb', TransactionIntent::INTERNAL_TRANSFER, null, null, null, '100000.00'];
+        yield 'transfer to wallet from bank' => ['transfer ke gopay dari bca 100rb', TransactionIntent::INTERNAL_TRANSFER, null, null, null, '100000.00'];
         yield 'cash withdrawal' => ['tarik tunai 500rb', TransactionIntent::INTERNAL_TRANSFER, null, null, null, '500000.00'];
         yield 'interest' => ['bunga deposito', TransactionIntent::OTHER_INCOME, 'INTEREST_INCOME', null, null, null];
         yield 'spending noun without a verb' => ['makan siang 45rb', TransactionIntent::EXPENSE, 'FOOD', null, null, '45000.00'];

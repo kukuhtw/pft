@@ -9,6 +9,7 @@ use App\Modules\Accounts\Models\FinancialAccount;
 use App\Modules\Budgets\Services\BudgetService;
 use App\Modules\Categories\Models\TransactionCategory;
 use App\Modules\Interpretation\Enums\TransactionIntent;
+use App\Modules\Interpretation\Services\AccountMentionMatcher;
 use App\Modules\Interpretation\Services\EntryInterpretationService;
 use App\Modules\Interpretation\Services\IntentPostingService;
 use App\Modules\Reporting\Services\FinancialSummaryService;
@@ -56,6 +57,7 @@ final readonly class TelegramBotService
         private IntentPostingService $posting,
         private FinancialSummaryService $summaries,
         private BudgetService $budgets,
+        private AccountMentionMatcher $mentions,
     ) {}
 
     /** @param  array<string, mixed>  $update */
@@ -204,6 +206,8 @@ final readonly class TelegramBotService
             'destination' => null,
             'debt_account_id' => $result['suggested_request']['body']['debt_account_id'] ?? null,
             'debt_choices' => array_column($result['counterparty']['debt_accounts'] ?? [], 'id'),
+            // Own accounts named in the text ("pakai gopay", "dari BCA"), in order. Never guessed otherwise.
+            ...$this->mentionedAccounts($user, $text),
             'description' => Str::limit($text, 255, ''),
             'warnings' => array_values(array_intersect($result['warnings'], array_keys(self::WARNINGS))),
             'awaiting' => null,
@@ -258,6 +262,10 @@ final readonly class TelegramBotService
                 $this->telegram->editMessage($chatId, $messageId, 'Pilih jenis transaksi:', $this->intentKeyboard());
 
                 return;
+            case 'acc':
+                // Choose the account(s) again, ignoring what the text named.
+                $draft = [...$draft, 'source' => null, 'destination' => null, 'mentioned' => [], 'mentioned_from' => [], 'mentioned_to' => []];
+                break;
             case 'i':
                 $intent = TransactionIntent::tryFrom($value);
                 if ($intent === null || $intent->isSystem()) {
@@ -319,7 +327,11 @@ final readonly class TelegramBotService
         }
 
         foreach ([
-            'source' => [IntentPostingService::needsSource($intent), $intent === TransactionIntent::INTERNAL_TRANSFER ? 'Dari akun mana?' : 'Dibayar dari akun mana?', 's'],
+            'source' => [IntentPostingService::needsSource($intent), match ($intent) {
+                TransactionIntent::INTERNAL_TRANSFER => 'Dari akun mana?',
+                TransactionIntent::EXPENSE => 'Dibayar dari pos mana? (rekening, e-wallet, tunai, atau kartu kredit)',
+                default => 'Dibayar dari akun mana?',
+            }, 's'],
             'destination' => [IntentPostingService::needsDestination($intent), 'Masuk ke akun mana?', 'd'],
             'debt_account_id' => [$intent === TransactionIntent::DEBT_REPAYMENT && ($draft['counterparty'] === null || count($draft['debt_choices']) !== 1), 'Hutang mana yang dibayar?', 'x'],
         ] as $field => [$needed, $question, $prefix]) {
@@ -338,10 +350,15 @@ final readonly class TelegramBotService
                 return;
             }
 
-            if ($choices->count() === 1 && $field !== 'debt_account_id') {
-                $draft[$field] = $choices->first()->id;
+            // Use an account the text named explicitly; otherwise always ask, even when there is only
+            // one choice, so the user always sees which pocket the money leaves or enters.
+            if ($field !== 'debt_account_id') {
+                $named = $this->namedChoice($draft, $field, $choices);
+                if ($named !== null) {
+                    $draft[$field] = $named;
 
-                continue;
+                    continue;
+                }
             }
 
             $this->saveDraft($chatId, $draft);
@@ -361,8 +378,62 @@ final readonly class TelegramBotService
         $this->saveDraft($chatId, $draft);
         $say($this->summaryOf($user, $intent, $draft), [
             [['text' => '✅ Simpan', 'callback_data' => 'ok'], ['text' => '❌ Batal', 'callback_data' => 'no']],
-            [['text' => '🔁 Ganti jenis', 'callback_data' => 'chg']],
+            [['text' => '🔁 Ganti jenis', 'callback_data' => 'chg'], ['text' => '🏦 Ganti akun', 'callback_data' => 'acc']],
         ]);
+    }
+
+    /**
+     * The account the text named for this side, if it is a valid choice. For a transfer the first
+     * named account is the source and the next one the destination ("transfer BCA ke BNI").
+     *
+     * @param  array<string, mixed>  $draft
+     * @param  Collection<int, FinancialAccount>  $choices
+     */
+    private function namedChoice(array $draft, string $field, Collection $choices): ?string
+    {
+        $pool = match (true) {
+            $draft['intent'] !== TransactionIntent::INTERNAL_TRANSFER->value => $draft['mentioned'] ?? [],
+            $field === 'source' => $draft['mentioned_from'] ?? [],
+            default => $draft['mentioned_to'] ?? [],
+        };
+
+        foreach ((array) $pool as $id) {
+            if ($id !== $draft['source'] && $choices->contains('id', $id)) {
+                return (string) $id;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Accounts named in the text. For transfers the words before "ke" name the source and the words
+     * after it the destination ("transfer BCA ke BNI", "pindah ke GoPay dari BCA" → from BCA, to GoPay).
+     *
+     * @return array{mentioned: list<string>, mentioned_from: list<string>, mentioned_to: list<string>}
+     */
+    private function mentionedAccounts(User $user, string $text): array
+    {
+        $accounts = $this->posting->accounts($user, false)->concat($this->posting->accounts($user, true));
+        $all = $this->mentions->find($text, $accounts);
+
+        $from = $all;
+        $to = [];
+        if (preg_match('/^(.*?)\bke\b(.*)$/iu', $text, $m) === 1) {
+            $after = $m[2];
+            $before = $m[1];
+            // "ke X dari Y": the part after "dari" is the source.
+            if (preg_match('/^(.*?)\bdari\b(.*)$/iu', $after, $d) === 1) {
+                $after = $d[1];
+                $before .= ' '.$d[2];
+            }
+            $from = $this->mentions->find($before, $accounts);
+            $to = $this->mentions->find($after, $accounts);
+        } elseif (count($all) > 1) {
+            $to = array_slice($all, 1);
+        }
+
+        return ['mentioned' => $all, 'mentioned_from' => $from, 'mentioned_to' => $to];
     }
 
     /** @param  array<string, mixed>  $draft */
@@ -424,13 +495,14 @@ final readonly class TelegramBotService
     private function choices(User $user, array $draft, string $field): Collection
     {
         $intent = TransactionIntent::tryFrom((string) $draft['intent']);
-        $assets = $this->posting->accounts($user, liability: false)->toBase();
+        if ($intent === null) {
+            return collect();
+        }
 
         return match ($field) {
-            'source' => $intent === TransactionIntent::EXPENSE
-                ? $assets->merge($this->posting->accounts($user, liability: true)->where('account_type_code', 'CREDIT_CARD'))
-                : $assets,
-            'destination' => $assets->reject(static fn (FinancialAccount $a): bool => $a->id === $draft['source'])->values(),
+            'source' => $this->posting->accountsFor($user, $intent, 'source')->toBase(),
+            'destination' => $this->posting->accountsFor($user, $intent, 'destination')->toBase()
+                ->reject(static fn (FinancialAccount $a): bool => $a->id === $draft['source'])->values(),
             'debt_account_id' => (function () use ($user, $draft): Collection {
                 $debts = $this->posting->accounts($user, liability: true)->toBase()->filter(static fn (FinancialAccount $a): bool => $a->balance()->isPositive());
                 $own = $debts->whereIn('id', $draft['debt_choices']);

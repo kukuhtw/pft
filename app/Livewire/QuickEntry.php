@@ -81,7 +81,7 @@ final class QuickEntry extends Component
         $this->resetForm(keepText: true);
 
         $this->intent = (string) ($result['intent'] ?? '');
-        $this->amount = $result['amount']?->amount !== null ? rtrim(rtrim($result['amount']->amount, '0'), '.') : '';
+        $this->amount = $result['amount']?->amount !== null ? MoneyInput::format($result['amount']->amount) : '';
         $this->counterparty = (string) ($result['counterparty']['name'] ?? '');
         $this->activity = (string) ($result['activity'] ?? '');
         $this->description = Str::limit($this->text, 255, '');

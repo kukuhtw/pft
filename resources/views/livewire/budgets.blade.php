@@ -62,7 +62,7 @@
                                 <span class="text-slate-600"><span aria-hidden="true">{{ $icon }}</span> {{ $label }} · {{ $row['percent'] }}%</span>
                                 <span class="flex items-center gap-3">
                                     <span class="tabular-nums text-slate-500">{{ $row['remaining']->isNegative() ? 'lebih '.$row['remaining']->negate()->format() : 'sisa '.$row['remaining']->format() }}</span>
-                                    <button wire:click="edit('{{ $row['category']->id }}', '{{ rtrim(rtrim($row['budget']->amount, '0'), '.') }}')" class="text-slate-500 underline hover:text-slate-900">Ubah</button>
+                                    <button wire:click="edit('{{ $row['category']->id }}', '{{ \App\Modules\Shared\Support\MoneyInput::format((string) $row['budget']->amount) }}')" class="text-slate-500 underline hover:text-slate-900">Ubah</button>
                                 </span>
                             </div>
                         @else

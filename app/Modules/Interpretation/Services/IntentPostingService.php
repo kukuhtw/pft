@@ -72,6 +72,32 @@ final readonly class IntentPostingService
     }
 
     /**
+     * Accounts a transaction of this intent may use on one side, owner-scoped:
+     *  - expense source: money accounts + credit cards (a receivable is not spendable money)
+     *  - income / loan destination: money accounts (not a receivable)
+     *  - transfer: any asset account, including receivables (lending = transfer to "Piutang")
+     *  - debt repayment source: money accounts
+     *
+     * @param  'source'|'destination'  $side
+     * @return Collection<int, FinancialAccount>
+     */
+    public function accountsFor(User $user, TransactionIntent $intent, string $side): Collection
+    {
+        $assets = $this->accounts($user, liability: false);
+        $money = $assets->reject(static fn (FinancialAccount $a): bool => $a->account_type_code === 'RECEIVABLE')->values();
+
+        if ($intent === TransactionIntent::INTERNAL_TRANSFER) {
+            return $assets;
+        }
+
+        if ($side === 'source' && $intent === TransactionIntent::EXPENSE) {
+            return $money->concat($this->accounts($user, liability: true)->where('account_type_code', 'CREDIT_CARD'))->values();
+        }
+
+        return $money;
+    }
+
+    /**
      * Active accounts of one ledger side, owner-scoped.
      *
      * @return Collection<int, FinancialAccount>
@@ -79,7 +105,7 @@ final readonly class IntentPostingService
     public function accounts(User $user, bool $liability): Collection
     {
         return FinancialAccount::query()
-            ->with(['ledgerAccount', 'counterparty'])
+            ->with(['ledgerAccount', 'counterparty', 'institution'])
             ->where('user_id', $user->id)
             ->where('status', AccountStatus::ACTIVE)
             ->whereHas('ledgerAccount', static fn ($q) => $q->where('class', $liability ? 'LIABILITY' : 'ASSET'))
