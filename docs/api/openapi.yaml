@@ -46,7 +46,7 @@ components:
               type: string
               enum: [VALIDATION_FAILED, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, RATE_LIMITED, IDEMPOTENCY_KEY_REQUIRED,
                      IDEMPOTENCY_CONFLICT, INSUFFICIENT_FUNDS, ACCOUNT_NOT_USABLE, CATEGORY_NOT_USABLE, TRANSACTION_INVALID,
-                     TRANSACTION_NOT_REVERSIBLE, TRANSACTION_NOT_FOUND, LEDGER_UNBALANCED, LEDGER_INVALID_JOURNAL,
+                     TRANSACTION_NOT_REVERSIBLE, TRANSACTION_NOT_FOUND, DEBT_ACCOUNT_NOT_FOUND, DEBT_ACCOUNT_AMBIGUOUS, LEDGER_UNBALANCED, LEDGER_INVALID_JOURNAL,
                      LEDGER_ACCOUNT_NOT_USABLE, LEDGER_IMMUTABLE_RECORD, HTTP_ERROR]
             message: { type: string }
             details: { type: object }
@@ -58,6 +58,7 @@ components:
         account_type: { type: string, enum: [BANK, CASH, EWALLET, CREDIT_CARD, LOAN] }
         ledger_class: { type: string, enum: [ASSET, LIABILITY] }
         institution: { type: [object, 'null'], properties: { code: { type: string }, name: { type: string } } }
+        counterparty: { type: [object, 'null'], description: 'Liabilities only — the party this debt is owed to', properties: { id: { type: string }, name: { type: string } } }
         currency: { type: string }
         account_number_last4: { type: [string, 'null'] }
         opening_balance: { type: string }
@@ -68,7 +69,9 @@ components:
       type: object
       properties:
         id: { type: string, format: ulid }
-        type: { type: string, enum: [INCOME, EXPENSE, INTERNAL_TRANSFER, LIABILITY_PAYMENT, LIABILITY_DRAWDOWN, ADJUSTMENT] }
+        type: { type: string, enum: [INCOME, EXPENSE, INTERNAL_TRANSFER, LIABILITY_PAYMENT, LIABILITY_DRAWDOWN, ADJUSTMENT], description: Accounting shape }
+        intent: { $ref: '#/components/schemas/Intent' }
+        intent_label: { type: [string, 'null'], example: Pinjaman diterima }
         status: { type: string, enum: [DRAFT, PENDING_CONFIRMATION, POSTED, REVERSED, FAILED] }
         transaction_date: { type: string, format: date }
         amount: { $ref: '#/components/schemas/Money' }
@@ -76,13 +79,30 @@ components:
         destination_account: { type: [object, 'null'] }
         category: { type: [object, 'null'] }
         merchant: { type: [string, 'null'] }
+        counterparty: { type: [object, 'null'], properties: { id: { type: string }, name: { type: string }, kind: { type: string, enum: [PERSON, ORGANIZATION, UNKNOWN] } } }
+        activity: { type: [string, 'null'], description: 'What earned ACTIVITY_INCOME, e.g. "jualan kue"' }
+        debt_account_id: { type: [string, 'null'], description: 'The liability account for LOAN_RECEIVED / DEBT_REPAYMENT' }
+        interpretation:
+          type: [object, 'null']
+          properties:
+            confidence: { type: string, enum: [HIGH, MEDIUM, LOW], description: 'HIGH = from ledger structure; MEDIUM = from text pattern; LOW = fallback' }
+            signals: { type: array, items: { type: string }, example: ['type:INCOME', 'keyword:gaji', 'category:SALARY'] }
+            warnings: { type: array, items: { type: string, enum: [TEXT_SUGGESTS_LOAN_RECEIVED, TEXT_SUGGESTS_DEBT_REPAYMENT, LENDING_OUT_NOT_SUPPORTED, RECEIVABLE_COLLECTION_NOT_SUPPORTED] } }
+            counterparty_guess: { type: [string, 'null'], description: 'Name read from the description that matched no known counterparty (not linked)' }
+            source: { type: string, example: heuristic }
         description: { type: [string, 'null'] }
         reference_number: { type: [string, 'null'] }
         payment_method: { type: [string, 'null'], enum: [CASH, BANK_TRANSFER, QRIS, DEBIT_CARD, CREDIT_CARD, EWALLET, VIRTUAL_ACCOUNT, OTHER, null] }
         channel: { type: string }
         posted_at: { type: [string, 'null'], format: date-time }
         reversed_at: { type: [string, 'null'], format: date-time }
-        journal_entries: { type: array, description: Only on GET /transactions/{id} and reverse }
+        journal_entries: { type: array, description: 'Only on GET /transactions/{id} and reverse' }
+    Intent:
+      type: [string, 'null']
+      description: |
+        What the entry means. Derived from the ledger structure (account classes + category); text only refines
+        salary vs activity when the category is generic. Rows posted before this field existed are null.
+      enum: [SALARY_INCOME, ACTIVITY_INCOME, OTHER_INCOME, LOAN_RECEIVED, DEBT_REPAYMENT, EXPENSE, INTERNAL_TRANSFER, OPENING_BALANCE, null]
     PostingCommon:
       type: object
       required: [amount]
@@ -95,10 +115,12 @@ components:
         description: { type: string, maxLength: 255 }
         reference_number: { type: string, maxLength: 64 }
         payment_method: { type: string }
+        counterparty: { type: string, maxLength: 128, description: 'Party the money came from / went to. Found or created by name ("Pak Budi" = "budi").' }
+        activity: { type: string, maxLength: 64, description: 'What earned the income. Inferred from the description when omitted.' }
   responses:
     Error: { description: Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
     TransactionCreated:
-      description: Posted (201) or idempotent replay (200, header `Idempotent-Replayed: true`)
+      description: 'Posted (201) or idempotent replay (200, header `Idempotent-Replayed: true`)'
       content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Transaction' } } } } }
 
 paths:
@@ -183,6 +205,8 @@ paths:
         - { name: status, in: query, schema: { type: string } }
         - { name: account_id, in: query, schema: { type: string } }
         - { name: category_id, in: query, schema: { type: string } }
+        - { name: intent, in: query, schema: { $ref: '#/components/schemas/Intent' } }
+        - { name: counterparty_id, in: query, schema: { type: string } }
         - { name: per_page, in: query, schema: { type: integer, maximum: 100, default: 25 } }
       responses: { '200': { description: 'Laravel pagination envelope: data, links, meta' } }
   /transactions/{id}:
@@ -193,6 +217,7 @@ paths:
   /transactions/income:
     post:
       summary: 'Income — Dr destination / Cr income category'
+      description: Without `category_id` the category is inferred from `description` (gaji/THR/bonus → SALARY, jualan/usaha → BUSINESS, proyek/fee/honor → FREELANCE, else OTHER_INCOME).
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         content:
@@ -201,7 +226,7 @@ paths:
               allOf:
                 - $ref: '#/components/schemas/PostingCommon'
                 - { type: object, required: [destination_account_id], properties: { destination_account_id: { type: string } } }
-            example: { amount: 10000000, destination_account_id: 01jd..., category_id: 01jd..., description: Gaji masuk BCA }
+            example: { amount: 10000000, destination_account_id: 01jd..., description: Gaji November, counterparty: PT Maju Jaya }
       responses:
         '201': { $ref: '#/components/responses/TransactionCreated' }
         '200': { $ref: '#/components/responses/TransactionCreated' }
@@ -238,6 +263,77 @@ paths:
       responses:
         '201': { $ref: '#/components/responses/TransactionCreated' }
         '422': { $ref: '#/components/responses/Error' }
+  /transactions/loan-received:
+    post:
+      summary: 'Loan received from a party — Dr asset / Cr loan (LIABILITY_DRAWDOWN, intent LOAN_RECEIVED). Never income.'
+      description: Give `debt_account_id`, or `counterparty`. The party's single open debt is used; on first use a LOAN account "Pinjaman <name>" is opened.
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/PostingCommon'
+                - type: object
+                  required: [destination_account_id]
+                  properties: { destination_account_id: { type: string }, debt_account_id: { type: string }, counterparty: { type: string, description: 'Required without debt_account_id' } }
+            example: { amount: 2000000, destination_account_id: 01jd..., counterparty: Pak Budi, description: pinjam untuk modal }
+      responses:
+        '201': { $ref: '#/components/responses/TransactionCreated' }
+        '409': { description: 'DEBT_ACCOUNT_AMBIGUOUS — details.debt_accounts lists the choices', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '422': { $ref: '#/components/responses/Error' }
+  /transactions/debt-payment:
+    post:
+      summary: 'Payment to a party for a specific debt — Dr loan/card / Cr asset (LIABILITY_PAYMENT, intent DEBT_REPAYMENT). Never expense.'
+      description: Give `debt_account_id`, or `counterparty` when that party has exactly one open debt.
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/PostingCommon'
+                - type: object
+                  required: [source_account_id]
+                  properties: { source_account_id: { type: string }, debt_account_id: { type: string }, counterparty: { type: string, description: 'Required without debt_account_id' } }
+            example: { amount: 500000, source_account_id: 01jd..., counterparty: Pak Budi }
+      responses:
+        '201': { $ref: '#/components/responses/TransactionCreated' }
+        '409': { description: DEBT_ACCOUNT_AMBIGUOUS, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '422': { description: 'DEBT_ACCOUNT_NOT_FOUND, INSUFFICIENT_FUNDS, TRANSACTION_INVALID…', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /transactions/interpret:
+    post:
+      summary: Free text → confirmable proposal (read-only; nothing is posted, stored or logged)
+      description: |
+        Local pattern matching for Indonesian/English ("pinjam dari Pak Budi 2jt", "gaji November",
+        "hasil jualan kue 500rb", "bayar hutang ke Budi 1,5 juta"). Returns the intent, amount, counterparty
+        (matched against the user's known parties and their open debts) and the request to POST after the
+        user confirms. A future LLM-backed interpreter must return this same shape.
+      requestBody:
+        content: { application/json: { schema: { type: object, required: [text], properties: { text: { type: string, maxLength: 500 }, currency: { type: string } } } } }
+      responses:
+        '200':
+          description: Proposal
+          content:
+            application/json:
+              example:
+                data:
+                  intent: DEBT_REPAYMENT
+                  intent_label: Pembayaran hutang
+                  operation: debt-payment
+                  confidence: MEDIUM
+                  amount: { amount: '1000000.00', currency: IDR, formatted: Rp1.000.000 }
+                  counterparty: { name: Pak Budi, id: 01jd..., known: true, debt_accounts: [{ id: 01jd..., name: Pinjaman Pak Budi }] }
+                  activity: null
+                  category: null
+                  signals: ['keyword:bayar hutang']
+                  warnings: []
+                  suggested_request: { method: POST, path: /api/v1/transactions/debt-payment, body: { amount: '1000000.00', counterparty: Pak Budi, debt_account_id: 01jd..., description: bayar hutang ke pak budi 1jt }, missing: [source_account_id] }
+                  requires_confirmation: true
+  /counterparties:
+    get:
+      summary: The user's counterparties with their open debts (amount still owed)
+      responses: { '200': { description: OK } }
   /transactions/{id}/reverse:
     post:
       summary: Post a mirror journal entry; original entry stays untouched; status → REVERSED

@@ -10,6 +10,7 @@ use App\Modules\Accounts\Models\AccountType;
 use App\Modules\Accounts\Models\FinancialAccount;
 use App\Modules\Accounts\Models\FinancialInstitution;
 use App\Modules\Audit\Services\AuditLogger;
+use App\Modules\Ledger\Enums\LedgerAccountClass;
 use App\Modules\Ledger\Services\ChartOfAccountsService;
 use App\Modules\Shared\Domain\Money;
 use App\Modules\Transactions\Exceptions\InvalidTransactionException;
@@ -39,6 +40,7 @@ final class FinancialAccountService
         ?string $accountNumberLast4 = null,
         ?bool $allowNegativeBalance = null,
         ?string $aliases = null,
+        ?string $counterpartyId = null,
     ): FinancialAccount {
         $currency = $openingBalance->currency ?? (string) config('finance.default_currency');
 
@@ -60,7 +62,12 @@ final class FinancialAccountService
             throw new InvalidTransactionException(__('ledger.opening_balance_negative'));
         }
 
-        return DB::transaction(function () use ($user, $name, $type, $institution, $currency, $openingBalance, $openingBalanceDate, $accountNumberLast4, $allowNegativeBalance, $aliases): FinancialAccount {
+        // Only liabilities (loans, cards) are "owed to" a party.
+        if ($counterpartyId !== null && $type->ledger_class !== LedgerAccountClass::LIABILITY) {
+            throw new InvalidTransactionException(__('ledger.counterparty_requires_liability'));
+        }
+
+        return DB::transaction(function () use ($user, $name, $type, $institution, $currency, $openingBalance, $openingBalanceDate, $accountNumberLast4, $allowNegativeBalance, $aliases, $counterpartyId): FinancialAccount {
             $ledger = $this->chart->createAccount($user, $type->ledger_class, $name, $currency);
 
             $account = FinancialAccount::create([
@@ -68,6 +75,7 @@ final class FinancialAccountService
                 'ledger_account_id' => $ledger->id,
                 'account_type_code' => $type->code,
                 'financial_institution_id' => $institution?->id,
+                'counterparty_id' => $counterpartyId,
                 'name' => $name,
                 'currency_code' => $currency,
                 'account_number_last4' => $accountNumberLast4,
@@ -89,7 +97,7 @@ final class FinancialAccountService
                 $this->transactions->recordOpeningBalance($user, $account, $openingBalance, $openingBalanceDate);
             }
 
-            return $account->load(['ledgerAccount', 'accountType', 'institution']);
+            return $account->load(['ledgerAccount', 'accountType', 'institution', 'counterparty']);
         });
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Transactions\Http\Resources;
 
 use App\Modules\Shared\Domain\Money;
+use App\Modules\Transactions\Enums\TransactionType;
 use App\Modules\Transactions\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -22,6 +23,9 @@ final class TransactionResource extends JsonResource
         return [
             'id' => $this->id,
             'type' => $this->type->value,
+            // What the entry means: SALARY_INCOME, ACTIVITY_INCOME, LOAN_RECEIVED, DEBT_REPAYMENT, …
+            'intent' => $this->intent?->value,
+            'intent_label' => $this->intent?->label(),
             'status' => $this->status->value,
             'transaction_date' => $this->transaction_date->toDateString(),
             'amount' => Money::fromDatabase($this->getRawOriginal('amount'), $this->currency_code),
@@ -39,6 +43,19 @@ final class TransactionResource extends JsonResource
                 'name' => $this->category->name,
             ]),
             'merchant' => $this->whenLoaded('merchant', fn () => $this->merchant?->name),
+            'counterparty' => $this->whenLoaded('counterparty', fn () => $this->counterparty === null ? null : [
+                'id' => $this->counterparty->id,
+                'name' => $this->counterparty->name,
+                'kind' => $this->counterparty->kind->value,
+            ]),
+            'activity' => $this->activity,
+            // The liability side of a loan received / debt repayment ("which debt").
+            'debt_account_id' => match ($this->type) {
+                TransactionType::LIABILITY_DRAWDOWN => $this->source_account_id,
+                TransactionType::LIABILITY_PAYMENT => $this->destination_account_id,
+                default => null,
+            },
+            'interpretation' => $this->metadata['interpretation'] ?? null,
             'description' => $this->description,
             'reference_number' => $this->reference_number,
             'payment_method' => $this->payment_method?->value,

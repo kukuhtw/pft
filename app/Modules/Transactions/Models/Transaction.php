@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Modules\Accounts\Models\FinancialAccount;
 use App\Modules\Categories\Models\Merchant;
 use App\Modules\Categories\Models\TransactionCategory;
+use App\Modules\Counterparties\Models\Counterparty;
+use App\Modules\Interpretation\Enums\TransactionIntent;
 use App\Modules\Ledger\Exceptions\ImmutableRecordException;
 use App\Modules\Ledger\Models\JournalEntry;
 use App\Modules\Shared\Casts\DateOnly;
@@ -28,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property string $id
  * @property int $user_id
  * @property TransactionType $type
+ * @property TransactionIntent|null $intent
  * @property TransactionStatus $status
  * @property Carbon $transaction_date
  * @property string $amount
@@ -36,6 +39,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $destination_account_id
  * @property string|null $category_id
  * @property string|null $merchant_id
+ * @property string|null $counterparty_id
+ * @property string|null $activity
  * @property string|null $description
  * @property string|null $reference_number
  * @property PaymentMethod|null $payment_method
@@ -55,8 +60,8 @@ class Transaction extends Model
     private const array MUTABLE_AFTER_POSTING = ['status', 'reversed_at', 'reversed_by', 'reversal_reason', 'updated_at'];
 
     protected $fillable = [
-        'user_id', 'type', 'status', 'transaction_date', 'amount', 'currency_code', 'source_account_id',
-        'destination_account_id', 'category_id', 'merchant_id', 'description', 'reference_number',
+        'user_id', 'type', 'intent', 'status', 'transaction_date', 'amount', 'currency_code', 'source_account_id',
+        'destination_account_id', 'category_id', 'merchant_id', 'counterparty_id', 'activity', 'description', 'reference_number',
         'payment_method', 'channel', 'metadata', 'created_by', 'posted_at',
     ];
 
@@ -64,6 +69,7 @@ class Transaction extends Model
     {
         return [
             'type' => TransactionType::class,
+            'intent' => TransactionIntent::class,
             'status' => TransactionStatus::class,
             'payment_method' => PaymentMethod::class,
             'channel' => Channel::class,
@@ -121,6 +127,11 @@ class Transaction extends Model
     public function merchant(): BelongsTo
     {
         return $this->belongsTo(Merchant::class);
+    }
+
+    public function counterparty(): BelongsTo
+    {
+        return $this->belongsTo(Counterparty::class);
     }
 
     public function journalEntries(): HasMany

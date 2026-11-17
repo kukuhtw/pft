@@ -28,4 +28,10 @@ return [
     'account_type_invalid' => 'Invalid account type :type.',
     'institution_invalid' => 'Unknown financial institution :code.',
     'opening_balance_negative' => 'Opening balance cannot be negative.',
+    'counterparty_requires_liability' => 'A counterparty can only be linked to a loan or credit-card account.',
+    'debt_account_not_liability' => 'Account :account is not a debt (loan/credit card) account.',
+    'debt_party_required' => 'Name the lender or choose a debt account.',
+    'debt_account_ambiguous' => ':party has more than one open debt. Choose one with debt_account_id.',
+    'debt_account_not_found' => 'There is no open debt owed to :party.',
+    'debt_cash_account_must_be_asset' => 'Account :account must be a bank/wallet/cash account, not a debt account.',
 ];

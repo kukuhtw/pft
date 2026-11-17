@@ -42,6 +42,9 @@ abstract class PostTransactionRequest extends FormRequest
             'payment_method' => ['sometimes', 'nullable', Rule::enum(PaymentMethod::class)],
             'source_account_id' => ['string', 'ulid'],
             'destination_account_id' => ['string', 'ulid'],
+            // Semantics: who the money came from / went to, and what earned it. Names only (data minimisation).
+            'counterparty' => ['sometimes', 'nullable', 'string', 'max:128'],
+            'activity' => ['sometimes', 'nullable', 'string', 'max:64'],
         ];
     }
 
@@ -62,6 +65,9 @@ abstract class PostTransactionRequest extends FormRequest
             paymentMethod: $method !== null ? PaymentMethod::from($method) : null,
             channel: Channel::API,
             idempotencyKey: $this->header('Idempotency-Key'),
+            counterpartyName: $this->validated('counterparty'),
+            activity: $this->validated('activity'),
+            debtAccountId: $this->validated('debt_account_id'),
         );
     }
 }

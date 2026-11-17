@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace App\Modules\Transactions\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Debts\Services\DebtService;
+use App\Modules\Interpretation\Enums\TransactionIntent;
+use App\Modules\Interpretation\Services\EntryInterpretationService;
 use App\Modules\Transactions\Enums\TransactionStatus;
 use App\Modules\Transactions\Enums\TransactionType;
+use App\Modules\Transactions\Http\Requests\DebtPaymentRequest;
 use App\Modules\Transactions\Http\Requests\ExpenseRequest;
 use App\Modules\Transactions\Http\Requests\IncomeRequest;
+use App\Modules\Transactions\Http\Requests\LoanReceivedRequest;
 use App\Modules\Transactions\Http\Requests\TransferRequest;
 use App\Modules\Transactions\Http\Resources\TransactionResource;
 use App\Modules\Transactions\Models\Transaction;
@@ -22,7 +27,11 @@ use Illuminate\Validation\Rule;
 
 final class TransactionController extends Controller
 {
-    public function __construct(private readonly TransactionService $transactions) {}
+    public function __construct(
+        private readonly TransactionService $transactions,
+        private readonly DebtService $debts,
+        private readonly EntryInterpretationService $interpreter,
+    ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -33,12 +42,16 @@ final class TransactionController extends Controller
             'status' => ['sometimes', Rule::enum(TransactionStatus::class)],
             'account_id' => ['sometimes', 'string', 'ulid'],
             'category_id' => ['sometimes', 'string', 'ulid'],
+            'intent' => ['sometimes', Rule::enum(TransactionIntent::class)],
+            'counterparty_id' => ['sometimes', 'string', 'ulid'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
 
         $page = Transaction::query()
             ->where('user_id', $request->user()->id)
-            ->with(['sourceAccount', 'destinationAccount', 'category', 'merchant'])
+            ->with(['sourceAccount', 'destinationAccount', 'category', 'merchant', 'counterparty'])
+            ->when($filters['intent'] ?? null, static fn (Builder $q, string $i) => $q->where('intent', $i))
+            ->when($filters['counterparty_id'] ?? null, static fn (Builder $q, string $c) => $q->where('counterparty_id', $c))
             ->when($filters['date_from'] ?? null, static fn (Builder $q, string $d) => $q->where('transaction_date', '>=', $d))
             ->when($filters['date_to'] ?? null, static fn (Builder $q, string $d) => $q->where('transaction_date', '<=', $d))
             ->when($filters['type'] ?? null, static fn (Builder $q, string $t) => $q->where('type', $t))
@@ -60,8 +73,35 @@ final class TransactionController extends Controller
         Gate::authorize('view', $transaction);
 
         return new TransactionResource($transaction->load([
-            'sourceAccount', 'destinationAccount', 'category', 'merchant', 'journalEntries.lines',
+            'sourceAccount', 'destinationAccount', 'category', 'merchant', 'counterparty', 'journalEntries.lines',
         ]));
+    }
+
+    /** Pinjaman diterima dari pihak tertentu (LIABILITY_DRAWDOWN). */
+    public function loanReceived(LoanReceivedRequest $request): JsonResponse
+    {
+        return $this->respond($this->debts->loanReceived($request->user(), $request->toInput()));
+    }
+
+    /** Pembayaran ke pihak tertentu atas hutang tertentu (LIABILITY_PAYMENT). */
+    public function debtPayment(DebtPaymentRequest $request): JsonResponse
+    {
+        return $this->respond($this->debts->debtPayment($request->user(), $request->toInput()));
+    }
+
+    /** Free text → confirmable proposal. Read-only; the text is neither stored nor logged. */
+    public function interpret(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'text' => ['required', 'string', 'max:500'],
+            'currency' => ['sometimes', 'string', 'size:3', Rule::exists('currencies', 'code')->where('is_active', true)],
+        ]);
+
+        return response()->json(['data' => $this->interpreter->interpret(
+            $request->user(),
+            $data['text'],
+            (string) ($data['currency'] ?? config('finance.default_currency')),
+        )]);
     }
 
     public function income(IncomeRequest $request): JsonResponse
@@ -101,7 +141,7 @@ final class TransactionController extends Controller
     {
         $replayed = ! $transaction->wasRecentlyCreated;
 
-        $response = (new TransactionResource($transaction->loadMissing(['sourceAccount', 'destinationAccount', 'category', 'merchant'])))
+        $response = (new TransactionResource($transaction->loadMissing(['sourceAccount', 'destinationAccount', 'category', 'merchant', 'counterparty'])))
             ->response()
             ->setStatusCode($replayed ? 200 : 201);
 

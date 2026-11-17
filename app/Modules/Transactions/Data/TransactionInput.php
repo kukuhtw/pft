@@ -30,7 +30,35 @@ final readonly class TransactionInput
         public Channel $channel = Channel::API,
         public ?string $idempotencyKey = null,
         public array $metadata = [],
+        /** Party the money came from / went to (employer, lender, client…). */
+        public ?string $counterpartyName = null,
+        /** What earned the income, e.g. "jualan kue", "proyek website". */
+        public ?string $activity = null,
+        /** The liability (LOAN / CREDIT_CARD account) a loan-received or debt-payment entry belongs to. */
+        public ?string $debtAccountId = null,
     ) {}
+
+    /** Copy with resolved source/destination accounts (used once a debt account is resolved). */
+    public function withAccounts(?string $sourceAccountId, ?string $destinationAccountId): self
+    {
+        return new self(
+            amount: $this->amount,
+            transactionDate: $this->transactionDate,
+            sourceAccountId: $sourceAccountId,
+            destinationAccountId: $destinationAccountId,
+            categoryId: $this->categoryId,
+            merchantName: $this->merchantName,
+            description: $this->description,
+            referenceNumber: $this->referenceNumber,
+            paymentMethod: $this->paymentMethod,
+            channel: $this->channel,
+            idempotencyKey: $this->idempotencyKey,
+            metadata: $this->metadata,
+            counterpartyName: $this->counterpartyName,
+            activity: $this->activity,
+            debtAccountId: $this->debtAccountId,
+        );
+    }
 
     /**
      * Stable representation of the request, used to detect an idempotency key reused with a different payload.
@@ -50,6 +78,9 @@ final readonly class TransactionInput
             'description' => $this->description,
             'reference' => $this->referenceNumber,
             'payment_method' => $this->paymentMethod?->value,
+            'counterparty' => $this->counterpartyName,
+            'activity' => $this->activity,
+            'debt_account' => $this->debtAccountId,
         ];
     }
 }

@@ -79,16 +79,24 @@ final class CategoryService
     }
 
     /**
-     * Resolve the category used for posting. Falls back to OTHER_INCOME / OTHER_EXPENSE.
+     * Resolve the category used for posting. Without an ID, uses $fallbackCode (e.g. a category suggested
+     * from the description) when it exists and is active, else OTHER_INCOME / OTHER_EXPENSE.
      * Lookups are tenant-scoped: another user's category ID behaves exactly like a missing one.
      */
-    public function resolveForPosting(User $user, ?string $categoryId, CategoryKind $kind): TransactionCategory
+    public function resolveForPosting(User $user, ?string $categoryId, CategoryKind $kind, ?string $fallbackCode = null): TransactionCategory
     {
-        $query = TransactionCategory::query()->with('ledgerAccount')->where('user_id', $user->id);
+        $query = static fn () => TransactionCategory::query()->with('ledgerAccount')->where('user_id', $user->id);
+
+        if ($categoryId === null && $fallbackCode !== null) {
+            $suggested = $query()->where('code', $fallbackCode)->where('kind', $kind->value)->where('is_active', true)->first();
+            if ($suggested !== null) {
+                return $suggested;
+            }
+        }
 
         $category = $categoryId !== null
-            ? $query->whereKey($categoryId)->first()
-            : $query->where('code', $kind === CategoryKind::INCOME ? 'OTHER_INCOME' : 'OTHER_EXPENSE')->first();
+            ? $query()->whereKey($categoryId)->first()
+            : $query()->where('code', $kind === CategoryKind::INCOME ? 'OTHER_INCOME' : 'OTHER_EXPENSE')->first();
 
         if ($category === null || ! $category->is_active) {
             throw new CategoryNotUsableException(__('ledger.category_not_found'));

@@ -47,6 +47,22 @@ The concurrency tests (`tests/Integration/ConcurrentPostingTest.php`) need real 
 | Loan disbursement | Bank | Loan (liability) | `LIABILITY_DRAWDOWN` |
 | Correction | mirror of the original | | original → `REVERSED` |
 
+### Entry semantics (intent, counterparty, activity)
+
+Every posted transaction also records **what it means**, so reports, heuristics and LLMs read the same facts:
+
+| Entry | Endpoint | `type` | `intent` | Recorded |
+|---|---|---|---|---|
+| Gaji / THR / bonus | `income` | `INCOME` | `SALARY_INCOME` | employer as `counterparty` |
+| Hasil jualan, proyek, honor… | `income` | `INCOME` | `ACTIVITY_INCOME` | `activity` ("jualan kue"), client |
+| Pinjaman dari pihak X | `loan-received` | `LIABILITY_DRAWDOWN` | `LOAN_RECEIVED` | LOAN account linked to X (opened on first use) |
+| Bayar hutang ke X | `debt-payment` | `LIABILITY_PAYMENT` | `DEBT_REPAYMENT` | the specific debt account (`debt_account_id`) |
+
+- The intent comes from the **ledger structure** (account classes + category), never from free text alone. A misread description cannot change the books.
+- Text (`description`) is used only to pick the income category when none is sent, to fill counterparty/activity, and to raise `interpretation.warnings` when it contradicts the operation (e.g. "pinjam dari Budi" posted as income → `TEXT_SUGGESTS_LOAN_RECEIVED`).
+- `POST /transactions/interpret {"text": "bayar hutang ke Pak Budi 1jt"}` returns a confirmable proposal: intent, amount, known counterparty + open debts, and the request to POST. It is read-only and runs locally.
+- The pattern engine is `Interpretation/Services/TextAnalyzer` (Indonesian + English). An LLM can replace `Interpretation/Contracts/TextInterpreter`; it must return `Interpretation::jsonSchema()`. See the security checklist before enabling one.
+
 Full design, ERD and posting algorithm: [`docs/architecture/01-phase1-ledger-design.md`](docs/architecture/01-phase1-ledger-design.md).
 
 Guarantees:
@@ -96,6 +112,9 @@ app/Modules/
   Ledger/        Chart of accounts, LedgerPostingService (the only writer), integrity verifier
   Accounts/      Financial accounts & opening balances
   Categories/    Income/expense categories, merchants
+  Counterparties/ Parties money comes from / goes to (employer, lender, client); debts link to them
+  Debts/         Loan received / debt payment per party (resolves or opens the LOAN account)
+  Interpretation/ Intent enum, text pattern engine, posting classifier, /interpret proposals
   Transactions/  Income, expense, transfer, reversal, idempotency
   Reporting/     Financial summary
   Audit/         Audit trail

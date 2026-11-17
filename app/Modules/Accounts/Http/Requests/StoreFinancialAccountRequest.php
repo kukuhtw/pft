@@ -34,6 +34,8 @@ final class StoreFinancialAccountRequest extends FormRequest
             'account_number_last4' => ['sometimes', 'nullable', 'string', 'regex:/^\d{4}$/'],
             'allow_negative_balance' => ['sometimes', 'boolean'],
             'aliases' => ['sometimes', 'nullable', 'string', 'max:255'],
+            // For LOAN / CREDIT_CARD: the party this debt is owed to ("Pak Budi", "Bank Jago").
+            'counterparty' => ['sometimes', 'nullable', 'string', 'max:128'],
         ];
     }
 }

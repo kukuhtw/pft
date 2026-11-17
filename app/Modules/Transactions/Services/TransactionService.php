@@ -12,6 +12,10 @@ use App\Modules\Categories\Enums\CategoryKind;
 use App\Modules\Categories\Models\TransactionCategory;
 use App\Modules\Categories\Services\CategoryService;
 use App\Modules\Categories\Services\MerchantService;
+use App\Modules\Counterparties\Models\Counterparty;
+use App\Modules\Counterparties\Services\CounterpartyService;
+use App\Modules\Interpretation\Data\Interpretation;
+use App\Modules\Interpretation\Services\PostingClassifier;
 use App\Modules\Ledger\Data\JournalDraft;
 use App\Modules\Ledger\Data\JournalLineDraft;
 use App\Modules\Ledger\Enums\JournalEntryType;
@@ -47,20 +51,26 @@ final class TransactionService
         private readonly MerchantService $merchants,
         private readonly IdempotencyGuard $idempotency,
         private readonly AuditLogger $audit,
+        private readonly PostingClassifier $classifier,
+        private readonly CounterpartyService $counterparties,
     ) {}
 
-    /** Money received from an external source.  Dr destination / Cr income category. */
+    /**
+     * Money received from an external source.  Dr destination / Cr income category.
+     * Without category_id the category is inferred from the description ("gaji…" → SALARY, "jualan…" → BUSINESS).
+     */
     public function recordIncome(User $user, TransactionInput $input): Transaction
     {
         return $this->idempotency->run($user, 'transactions.income', $input->idempotencyKey, $input->fingerprint(), function () use ($user, $input): Transaction {
             $destination = $this->ownedAccount($user, $input->destinationAccountId);
-            $category = $this->categories->resolveForPosting($user, $input->categoryId, CategoryKind::INCOME);
+            $suggested = $input->categoryId === null ? $this->classifier->suggestIncomeCategory($input->description) : null;
+            $category = $this->categories->resolveForPosting($user, $input->categoryId, CategoryKind::INCOME, $suggested);
             $this->assertCurrency($input->amount, $destination);
 
             return $this->persistAndPost($user, TransactionType::INCOME, $input, null, $destination, $category, [
                 JournalLineDraft::debit($destination->ledger_account_id, $input->amount),
                 JournalLineDraft::credit($category->ledger_account_id, $input->amount),
-            ]);
+            ], categoryFromText: $suggested !== null && $category->code === $suggested);
         });
     }
 
@@ -86,28 +96,35 @@ final class TransactionService
      */
     public function recordTransfer(User $user, TransactionInput $input): Transaction
     {
-        return $this->idempotency->run($user, 'transactions.transfer', $input->idempotencyKey, $input->fingerprint(), function () use ($user, $input): Transaction {
-            $source = $this->ownedAccount($user, $input->sourceAccountId);
-            $destination = $this->ownedAccount($user, $input->destinationAccountId);
+        return $this->idempotency->run($user, 'transactions.transfer', $input->idempotencyKey, $input->fingerprint(), fn (): Transaction => $this->postTransfer($user, $input));
+    }
 
-            if ($source->id === $destination->id) {
-                throw new InvalidTransactionException(__('ledger.transfer_same_account'));
-            }
+    /**
+     * Unguarded transfer posting. Callers must already be inside an idempotency guard / DB transaction
+     * (DebtService uses it after resolving the debt account).
+     */
+    public function postTransfer(User $user, TransactionInput $input): Transaction
+    {
+        $source = $this->ownedAccount($user, $input->sourceAccountId);
+        $destination = $this->ownedAccount($user, $input->destinationAccountId);
 
-            $this->assertCurrency($input->amount, $source);
-            $this->assertCurrency($input->amount, $destination);
+        if ($source->id === $destination->id) {
+            throw new InvalidTransactionException(__('ledger.transfer_same_account'));
+        }
 
-            $type = match (true) {
-                ! $source->isLiability() && $destination->isLiability() => TransactionType::LIABILITY_PAYMENT,
-                $source->isLiability() && ! $destination->isLiability() => TransactionType::LIABILITY_DRAWDOWN,
-                default => TransactionType::INTERNAL_TRANSFER,
-            };
+        $this->assertCurrency($input->amount, $source);
+        $this->assertCurrency($input->amount, $destination);
 
-            return $this->persistAndPost($user, $type, $input, $source, $destination, null, [
-                JournalLineDraft::debit($destination->ledger_account_id, $input->amount),
-                JournalLineDraft::credit($source->ledger_account_id, $input->amount),
-            ]);
-        });
+        $type = match (true) {
+            ! $source->isLiability() && $destination->isLiability() => TransactionType::LIABILITY_PAYMENT,
+            $source->isLiability() && ! $destination->isLiability() => TransactionType::LIABILITY_DRAWDOWN,
+            default => TransactionType::INTERNAL_TRANSFER,
+        };
+
+        return $this->persistAndPost($user, $type, $input, $source, $destination, null, [
+            JournalLineDraft::debit($destination->ledger_account_id, $input->amount),
+            JournalLineDraft::credit($source->ledger_account_id, $input->amount),
+        ]);
     }
 
     /**
@@ -213,6 +230,7 @@ final class TransactionService
         ?TransactionCategory $category,
         array $lines,
         JournalEntryType $entryType = JournalEntryType::STANDARD,
+        bool $categoryFromText = false,
     ): Transaction {
         if (! $input->amount->isPositive()) {
             throw new InvalidTransactionException(__('ledger.amount_positive'));
@@ -220,12 +238,15 @@ final class TransactionService
 
         $date = $this->resolveDate($input->transactionDate);
 
-        return DB::transaction(function () use ($user, $type, $input, $source, $destination, $category, $lines, $entryType, $date): Transaction {
+        return DB::transaction(function () use ($user, $type, $input, $source, $destination, $category, $lines, $entryType, $date, $categoryFromText): Transaction {
             $merchant = $this->merchants->resolve($user, $input->merchantName);
+            $meaning = $this->classifier->classify($type, $input, $source, $destination, $category, $categoryFromText);
+            $counterparty = $this->resolveCounterparty($user, $input, $meaning, $source, $destination);
 
             $transaction = Transaction::create([
                 'user_id' => $user->id,
                 'type' => $type,
+                'intent' => $meaning->intent,
                 'status' => TransactionStatus::POSTED,
                 'transaction_date' => $date->toDateString(),
                 'amount' => $input->amount->amount,
@@ -234,11 +255,20 @@ final class TransactionService
                 'destination_account_id' => $destination?->id,
                 'category_id' => $category?->id,
                 'merchant_id' => $merchant?->id,
+                'counterparty_id' => $counterparty?->id,
+                'activity' => $meaning->activity,
                 'description' => $input->description,
                 'reference_number' => $input->referenceNumber,
                 'payment_method' => $input->paymentMethod,
                 'channel' => $input->channel,
-                'metadata' => $input->metadata !== [] ? $input->metadata : null,
+                'metadata' => [...$input->metadata, 'interpretation' => [
+                    'confidence' => $meaning->confidence->value,
+                    'signals' => $meaning->signals,
+                    'warnings' => $meaning->warnings,
+                    // A name read from the text that matched no known counterparty: kept as a hint, not linked.
+                    'counterparty_guess' => $counterparty === null ? $meaning->counterparty : null,
+                    'source' => $meaning->source,
+                ]],
                 'created_by' => $user->id,
                 'posted_at' => now(),
             ]);
@@ -258,14 +288,37 @@ final class TransactionService
 
             $this->audit->record('transaction.posted', $user, $transaction, [
                 'type' => $type->value,
+                'intent' => $meaning->intent?->value,
+                'counterparty_id' => $counterparty?->id,
                 'amount' => $input->amount->amount,
                 'currency' => $input->amount->currency,
                 'journal_entry_id' => $entry->id,
                 'channel' => $input->channel->value,
             ]);
 
-            return $transaction->load(['sourceAccount', 'destinationAccount', 'category', 'merchant']);
+            return $transaction->load(['sourceAccount', 'destinationAccount', 'category', 'merchant', 'counterparty']);
         });
+    }
+
+    /**
+     * Link the entry to a counterparty:
+     *   explicit name from the client → find or create;
+     *   liability account linked to a party → that party;
+     *   name read from the description → link only if it matches an existing counterparty (guesses never create rows).
+     */
+    private function resolveCounterparty(User $user, TransactionInput $input, Interpretation $meaning, ?FinancialAccount $source, ?FinancialAccount $destination): ?Counterparty
+    {
+        if ($input->counterpartyName !== null && trim($input->counterpartyName) !== '') {
+            return $this->counterparties->resolve($user, $input->counterpartyName);
+        }
+
+        foreach ([$source, $destination] as $account) {
+            if ($account !== null && $account->counterparty_id !== null && $account->isLiability()) {
+                return $account->loadMissing('counterparty')->counterparty;
+            }
+        }
+
+        return $this->counterparties->match($user, $meaning->counterparty);
     }
 
     /**

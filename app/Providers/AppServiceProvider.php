@@ -6,6 +6,8 @@ namespace App\Providers;
 
 use App\Modules\Accounts\Models\FinancialAccount;
 use App\Modules\Accounts\Policies\FinancialAccountPolicy;
+use App\Modules\Interpretation\Contracts\TextInterpreter;
+use App\Modules\Interpretation\Services\HeuristicTextInterpreter;
 use App\Modules\Transactions\Models\Transaction;
 use App\Modules\Transactions\Policies\TransactionPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -20,7 +22,9 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Local pattern-based interpreter. Swap for an LLM-backed implementation only with user consent
+        // and a vetted processor: entry text is personal financial data (ISO/IEC 27001 A.5.34, A.8.11).
+        $this->app->bind(TextInterpreter::class, HeuristicTextInterpreter::class);
     }
 
     public function boot(): void

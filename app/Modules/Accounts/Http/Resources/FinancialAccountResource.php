@@ -27,6 +27,11 @@ final class FinancialAccountResource extends JsonResource
                 'code' => $this->institution->code,
                 'name' => $this->institution->name,
             ]),
+            // For liabilities: the party this debt is owed to.
+            'counterparty' => $this->whenLoaded('counterparty', fn () => $this->counterparty === null ? null : [
+                'id' => $this->counterparty->id,
+                'name' => $this->counterparty->name,
+            ]),
             'currency' => $this->currency_code,
             'account_number_last4' => $this->account_number_last4,
             'opening_balance' => $this->opening_balance,

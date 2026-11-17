@@ -19,6 +19,10 @@ Mapped to ISO/IEC 27001:2022 Annex A. Status: ✅ implemented (Phase 1) · 🟡 
 | A.8.28 | CSRF (web routes) | ✅ | Laravel default (web middleware) |
 | A.8.28 | XSS: JSON API only in Phase 1; Blade auto-escaping for Phase 2 UI | 🟡 | — |
 | A.8.12 | No financial data sent to third parties in Phase 1 | ✅ | AI is Phase 3 and must minimise/pseudonymise payloads |
+| A.8.11 | Counterparties (third-party personal data): only a display name + aliases are stored, tenant-private; no phone, NIK or account numbers | ✅ | `counterparties` table, `CounterpartyService` |
+| A.8.11 | Names guessed from descriptions are never auto-created as counterparties (kept only as `counterparty_guess` on the entry) | ✅ | `TransactionService::resolveCounterparty` |
+| A.8.12 / A.5.34 | Entry interpretation runs locally (`HeuristicTextInterpreter`). `/transactions/interpret` text is not stored or logged | ✅ | `EntryInterpretationService` |
+| A.5.34 / A.5.19 | Before binding an LLM `TextInterpreter`: user consent, DPA with a vetted processor, data-residency review (UU PDP), pseudonymise counterparty names, no-retention setting, and never call it inside the posting transaction | ⬜ | Phase 3 |
 | A.8.24 | Secrets only in `.env` (git-ignored); `.env.example` has no values | ✅ | `.gitignore` |
 | A.8.24 | Encrypted sessions (`SESSION_ENCRYPT=true` in `.env.example`) | ✅ | |
 | — | Integrity: balanced journals, immutable postings, idempotent posting, daily `ledger:verify` | ✅ | Ledger module |

@@ -6,6 +6,7 @@ namespace App\Modules\Accounts\Models;
 
 use App\Models\User;
 use App\Modules\Accounts\Enums\AccountStatus;
+use App\Modules\Counterparties\Models\Counterparty;
 use App\Modules\Ledger\Enums\LedgerAccountClass;
 use App\Modules\Ledger\Models\LedgerAccount;
 use App\Modules\Shared\Casts\DateOnly;
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $ledger_account_id
  * @property string $account_type_code
  * @property string|null $financial_institution_id
+ * @property string|null $counterparty_id party a liability (loan/card) is owed to
  * @property string $name
  * @property string $currency_code
  * @property string|null $account_number_last4
@@ -38,7 +40,7 @@ class FinancialAccount extends Model
     use HasUlids;
 
     protected $fillable = [
-        'user_id', 'ledger_account_id', 'account_type_code', 'financial_institution_id', 'name', 'currency_code',
+        'user_id', 'ledger_account_id', 'account_type_code', 'financial_institution_id', 'counterparty_id', 'name', 'currency_code',
         'account_number_last4', 'opening_balance', 'opening_balance_date', 'allow_negative_balance', 'status', 'aliases',
     ];
 
@@ -70,6 +72,11 @@ class FinancialAccount extends Model
     public function institution(): BelongsTo
     {
         return $this->belongsTo(FinancialInstitution::class, 'financial_institution_id');
+    }
+
+    public function counterparty(): BelongsTo
+    {
+        return $this->belongsTo(Counterparty::class);
     }
 
     public function isLiability(): bool
