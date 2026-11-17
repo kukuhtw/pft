@@ -10,6 +10,7 @@ use App\Modules\Accounts\Models\AccountType;
 use App\Modules\Accounts\Models\FinancialAccount;
 use App\Modules\Accounts\Models\FinancialInstitution;
 use App\Modules\Audit\Services\AuditLogger;
+use App\Modules\Counterparties\Models\Counterparty;
 use App\Modules\Ledger\Enums\LedgerAccountClass;
 use App\Modules\Ledger\Services\ChartOfAccountsService;
 use App\Modules\Shared\Domain\Money;
@@ -102,17 +103,43 @@ final class FinancialAccountService
         });
     }
 
-    /** Rename an account (and its backing ledger account). Balances and history are untouched. */
-    public function rename(User $user, FinancialAccount $account, string $name, ?string $accountNumberLast4): FinancialAccount
-    {
+    /**
+     * Edit an account's descriptive details: name (also on its ledger account), last 4 digits, bank/e-wallet
+     * and — for liabilities only — the party it is owed to. Balances and history are untouched.
+     */
+    public function updateDetails(
+        User $user,
+        FinancialAccount $account,
+        string $name,
+        ?string $accountNumberLast4,
+        ?string $institutionCode,
+        ?string $counterpartyId,
+    ): FinancialAccount {
         $this->assertOwner($user, $account);
         $name = trim($name);
         if ($name === '') {
             throw new InvalidTransactionException(__('ledger.account_name_required'));
         }
 
-        return DB::transaction(function () use ($user, $account, $name, $accountNumberLast4): FinancialAccount {
+        $institution = $institutionCode !== null
+            ? FinancialInstitution::query()->where('code', strtoupper($institutionCode))->where('is_active', true)->first()
+            : null;
+        if ($institutionCode !== null && $institution === null) {
+            throw new InvalidTransactionException(__('ledger.institution_invalid', ['code' => $institutionCode]));
+        }
+
+        return DB::transaction(function () use ($user, $account, $name, $accountNumberLast4, $institution, $counterpartyId): FinancialAccount {
             $account->loadMissing('ledgerAccount');
+
+            if ($counterpartyId !== null) {
+                if (! $account->isLiability()) {
+                    throw new InvalidTransactionException(__('ledger.counterparty_requires_liability'));
+                }
+                if (! Counterparty::query()->where('user_id', $user->id)->whereKey($counterpartyId)->exists()) {
+                    throw new InvalidTransactionException(__('ledger.account_not_found'));
+                }
+            }
+
             $changes = [];
             if ($account->name !== $name) {
                 // Old/new names are user-chosen labels, not personal data; logged for the audit trail.
@@ -121,8 +148,20 @@ final class FinancialAccountService
             if ($account->account_number_last4 !== $accountNumberLast4) {
                 $changes['last4_changed'] = true;
             }
+            if ($account->financial_institution_id !== $institution?->id) {
+                $changes['institution'] = $institution?->code;
+            }
+            if ($account->counterparty_id !== $counterpartyId) {
+                // Id only: the party's name stays out of the audit log.
+                $changes['counterparty_id'] = $counterpartyId;
+            }
 
-            $account->update(['name' => $name, 'account_number_last4' => $accountNumberLast4]);
+            $account->update([
+                'name' => $name,
+                'account_number_last4' => $accountNumberLast4,
+                'financial_institution_id' => $institution?->id,
+                'counterparty_id' => $counterpartyId,
+            ]);
             $account->ledgerAccount->update(['name' => $name]);
 
             if ($changes !== []) {

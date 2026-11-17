@@ -43,6 +43,24 @@
                         <input wire:model="editLast4" type="text" inputmode="numeric" maxlength="4" class="w-full rounded-md border border-slate-300 px-3 py-2">
                         @error('editLast4') <span class="mt-1 block text-red-600">{{ $message }}</span> @enderror
                     </label>
+                    <label class="block text-sm">
+                        <span class="mb-1 block font-medium">Bank / e-wallet (opsional)</span>
+                        <select wire:model="editInstitutionCode" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2">
+                            <option value="">—</option>
+                            @foreach ($institutions as $institution)
+                                <option value="{{ $institution->code }}">{{ $institution->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('editInstitutionCode') <span class="mt-1 block text-red-600">{{ $message }}</span> @enderror
+                    </label>
+                    @if ($editing->isLiability())
+                        <label class="block text-sm">
+                            <span class="mb-1 block font-medium">Hutang kepada (pihak)</span>
+                            <input wire:model="editCounterparty" type="text" maxlength="128" placeholder="mis. Pak Budi, Bank Jago" class="w-full rounded-md border border-slate-300 px-3 py-2">
+                            <span class="mt-1 block text-xs text-slate-500">Kosongkan jika tidak ditautkan ke pihak tertentu.</span>
+                            @error('editCounterparty') <span class="mt-1 block text-red-600">{{ $message }}</span> @enderror
+                        </label>
+                    @endif
                 </div>
 
                 <fieldset class="space-y-2 text-sm">
