@@ -211,7 +211,8 @@ final class TelegramBotTest extends TestCase
 
         $this->tap(1001, 's:'.$bca->id);
         $this->assertStringContainsString('Periksa sebelum disimpan', $this->lastReply()['text']);
-        $this->assertSame(['ok', 'no', 'chg', 'acc'], $this->buttons());
+        $this->assertStringContainsString('Kategori: ', $this->lastReply()['text'], '"makan" names the category: no question.');
+        $this->assertSame(['ok', 'no', 'chg', 'acc', 'cat'], $this->buttons());
 
         $this->tap(1001, 'ok');
         $tx = Transaction::query()->where('user_id', $user->id)->where('channel', 'TELEGRAM')->sole();
@@ -224,6 +225,38 @@ final class TelegramBotTest extends TestCase
         // Double tap: nothing posted twice.
         $this->tap(1001, 'ok');
         $this->assertSame(1, Transaction::query()->where('user_id', $user->id)->where('channel', 'TELEGRAM')->count());
+        $this->assertLedgerIntact($user);
+    }
+
+    public function test_bot_asks_the_category_when_the_text_does_not_name_one_and_it_can_be_changed(): void
+    {
+        $user = $this->linkedUser(1001);
+        $bca = $this->openAccount($user, 'BCA', 'BANK', opening: 1_000_000);
+        $health = $this->category($user, 'HEALTHCARE');
+        $transport = $this->category($user, 'TRANSPORTATION');
+
+        $this->say(1001, 'bayar servis motor 350rb pakai BCA');
+        $this->assertStringContainsString('Kategori pengeluarannya apa?', $this->lastReply()['text']);
+        $this->assertContains('c:'.$transport->id, $this->buttons());
+        $this->assertNotContains('ok', $this->buttons(), 'No save button before a category is chosen.');
+
+        // A forged button (another user's category) is ignored.
+        $stranger = $this->provisionedUser();
+        $this->tap(1001, 'c:'.$this->category($stranger, 'TRANSPORTATION')->id);
+        $this->assertStringContainsString('Kategori pengeluarannya apa?', $this->lastReply()['text']);
+
+        $this->tap(1001, 'c:'.$health->id);
+        $this->assertStringContainsString('Kategori: '.$health->name, $this->lastReply()['text']);
+
+        // Change it from the summary.
+        $this->tap(1001, 'cat');
+        $this->assertStringContainsString('Kategori pengeluarannya apa?', $this->lastReply()['text']);
+        $this->tap(1001, 'c:'.$transport->id);
+        $this->tap(1001, 'ok');
+
+        $tx = Transaction::query()->where('user_id', $user->id)->where('channel', 'TELEGRAM')->sole();
+        $this->assertSame('TRANSPORTATION', $tx->category?->code);
+        $this->assertSame('650000.00', $this->balanceOf($bca));
         $this->assertLedgerIntact($user);
     }
 

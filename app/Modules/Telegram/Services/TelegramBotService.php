@@ -7,6 +7,7 @@ namespace App\Modules\Telegram\Services;
 use App\Models\User;
 use App\Modules\Accounts\Models\FinancialAccount;
 use App\Modules\Budgets\Services\BudgetService;
+use App\Modules\Categories\Enums\CategoryKind;
 use App\Modules\Categories\Models\TransactionCategory;
 use App\Modules\Debts\Services\DebtRegisterService;
 use App\Modules\Interpretation\Enums\TransactionIntent;
@@ -266,6 +267,17 @@ final readonly class TelegramBotService
                 $this->telegram->editMessage($chatId, $messageId, 'Pilih jenis transaksi:', $this->intentKeyboard());
 
                 return;
+            case 'cat':
+                // Choose the category again, ignoring what the text suggested.
+                $draft['category_id'] = null;
+                break;
+            case 'c':
+                $intent = TransactionIntent::tryFrom((string) $draft['intent']);
+                if ($intent === null || ! $this->categoryChoices($user, $intent)->contains('id', $value)) {
+                    return; // stale or forged button
+                }
+                $draft['category_id'] = $value;
+                break;
             case 'acc':
                 // Choose the account(s) again, ignoring what the text named.
                 $draft = [...$draft, 'source' => null, 'destination' => null, 'mentioned' => [], 'mentioned_from' => [], 'mentioned_to' => []];
@@ -373,17 +385,63 @@ final readonly class TelegramBotService
             return;
         }
 
+        // Category: kept when the text named it clearly ("makan", "bensin", "gaji"…); otherwise asked,
+        // so spending does not silently pile up in "lainnya" and budgets/reports stay meaningful.
         if (IntentPostingService::needsCategory($intent) && $draft['category_id'] === null) {
+            $categories = $this->categoryChoices($user, $intent);
+
+            if ($categories->isNotEmpty()) {
+                $this->saveDraft($chatId, $draft);
+                $keyboard = array_map(
+                    static fn (array $pair): array => array_map(static fn (TransactionCategory $c): array => ['text' => $c->name, 'callback_data' => 'c:'.$c->id], $pair),
+                    array_chunk($categories->all(), 2),
+                );
+                $keyboard[] = [['text' => '❌ Batal', 'callback_data' => 'no']];
+                $say(sprintf(
+                    "<b>%s</b> · %s\n%s",
+                    $intent->label(),
+                    $this->money($draft['amount'])->format(),
+                    $intent === TransactionIntent::EXPENSE ? 'Kategori pengeluarannya apa?' : 'Kategori pemasukannya apa?',
+                ), $keyboard);
+
+                return;
+            }
+
+            // No usable category of this kind (all deactivated): fall back to the system default.
             $code = IntentPostingService::DEFAULT_CATEGORY[$intent->value] ?? null;
             $draft['category_id'] = $code === null ? null : TransactionCategory::query()
                 ->where('user_id', $user->id)->where('code', $code)->where('is_active', true)->value('id');
         }
 
         $this->saveDraft($chatId, $draft);
-        $say($this->summaryOf($user, $intent, $draft), [
+        $buttons = [
             [['text' => '✅ Simpan', 'callback_data' => 'ok'], ['text' => '❌ Batal', 'callback_data' => 'no']],
             [['text' => '🔁 Ganti jenis', 'callback_data' => 'chg'], ['text' => '🏦 Ganti akun', 'callback_data' => 'acc']],
-        ]);
+        ];
+        if (IntentPostingService::needsCategory($intent) && $this->categoryChoices($user, $intent)->count() > 1) {
+            $buttons[] = [['text' => '🏷 Ganti kategori', 'callback_data' => 'cat']];
+        }
+        $say($this->summaryOf($user, $intent, $draft), $buttons);
+    }
+
+    /**
+     * Active categories the user can pick for this intent (expense or income kind), own user only.
+     *
+     * @return Collection<int, TransactionCategory>
+     */
+    private function categoryChoices(User $user, TransactionIntent $intent): Collection
+    {
+        if (! IntentPostingService::needsCategory($intent)) {
+            return collect();
+        }
+
+        return TransactionCategory::query()
+            ->where('user_id', $user->id)
+            ->where('kind', ($intent === TransactionIntent::EXPENSE ? CategoryKind::EXPENSE : CategoryKind::INCOME)->value)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->toBase();
     }
 
     /**
