@@ -20,7 +20,7 @@
       <li><a href="#akun">Membuat akun</a></li>
       <li><a href="#catat">Mencatat transaksi</a></li>
       <li><a href="#contoh">Contoh kalimat</a></li>
-      <li><a href="#hutang">Pinjaman &amp; hutang</a></li>
+      <li><a href="#hutang">Catatan hutang</a></li>
       <li><a href="#transaksi">Melihat &amp; membatalkan</a></li>
       <li><a href="#budget">Budget bulanan</a></li>
       <li><a href="#laporan">Laporan &amp; ekspor</a></li>
@@ -41,7 +41,7 @@
         <li>Setelah mendaftar, Anda langsung masuk ke <strong>Dashboard</strong>. Daftar kategori standar (Gaji, Makan, Transportasi, dan lain-lain) sudah dibuat otomatis.</li>
       </ol>
       <div class="note info"><p><b>Keamanan login:</b> setelah 5 kali salah kata sandi dalam satu menit, login dikunci sementara. Pesan kesalahan sengaja dibuat umum, jadi orang lain tidak bisa menebak email mana yang terdaftar.</p></div>
-      <p>Menu utama ada di bagian atas: <span class="ui">Dashboard</span> <span class="ui">Transaksi</span> <span class="ui">Budget</span> <span class="ui">Laporan</span> <span class="ui">Akun</span> <span class="ui">Kategori</span>. Klik nama Anda di pojok kanan atas untuk membuka <strong>Profil</strong>. Gunakan <span class="ui">Keluar</span> setelah selesai, terutama di komputer bersama.</p>
+      <p>Menu utama ada di bagian atas: <span class="ui">Dashboard</span> <span class="ui">Transaksi</span> <span class="ui">Hutang</span> <span class="ui">Budget</span> <span class="ui">Laporan</span> <span class="ui">Akun</span> <span class="ui">Kategori</span>. Klik nama Anda di pojok kanan atas untuk membuka <strong>Profil</strong>. Gunakan <span class="ui">Keluar</span> setelah selesai, terutama di komputer bersama.</p>
       <figure><img src="images/dashboard.png" alt="Dashboard: ringkasan pemasukan dan pengeluaran, peringatan budget, kotak Catat transaksi, uang masuk menurut sumber, hutang per pihak, akun, dan transaksi terakhir" loading="lazy"><figcaption>Dashboard dengan data contoh.</figcaption></figure>
     </section>
 
@@ -112,7 +112,7 @@
           <tr><td><span class="chat">honor proyek website 3jt</span></td><td>Pemasukan dari aktivitas</td><td>Masuk ke akun</td></tr>
           <tr><td><span class="chat">makan siang 45rb</span></td><td>Pengeluaran</td><td>Dibayar dari, kategori</td></tr>
           <tr><td><span class="chat">transfer BCA ke BNI 2jt</span></td><td>Transfer antar akun sendiri</td><td>Dari akun, masuk ke akun</td></tr>
-          <tr><td><span class="chat">pinjam dari Pak Budi 2jt</span></td><td>Pinjaman diterima · dari Budi</td><td>Masuk ke akun</td></tr>
+          <tr><td><span class="chat">pinjam dari Pak Budi 2jt untuk bayar sekolah</span></td><td>Pinjaman diterima · dari Pak Budi · keperluan "bayar sekolah"</td><td>Masuk ke akun</td></tr>
           <tr><td><span class="chat">bayar hutang ke Budi 1jt</span></td><td>Pembayaran hutang · ke Budi</td><td>Dibayar dari</td></tr>
         </tbody>
       </table></div>
@@ -121,15 +121,69 @@
     </section>
 
     <section id="hutang">
-      <h2>5. Pinjaman &amp; hutang per pihak</h2>
-      <h3>Menerima pinjaman</h3>
-      <p>Tulis <span class="chat">pinjam dari Pak Budi 2jt</span>, pilih akun yang menerima uang, lalu simpan. Kolom <strong>Hutang</strong> bisa dibiarkan <em>Otomatis</em>: aplikasi akan membuat akun <em>"Pinjaman Budi"</em> jika belum ada, atau menambah hutang yang sudah ada.</p>
-      <h3>Membayar hutang</h3>
-      <p>Tulis <span class="chat">bayar hutang ke Budi 1jt</span>, lalu pilih akun pembayar. Jika Anda punya <strong>lebih dari satu</strong> hutang ke pihak yang sama, aplikasi meminta Anda memilih hutang mana yang dibayar.</p>
+      <h2>5. Catatan hutang</h2>
+      <p>Setiap kali Anda berhutang, aplikasi mengingat tiga hal: <strong>kapan</strong> hutang itu terjadi, <strong>kepada siapa</strong>, dan <strong>untuk keperluan apa</strong>. Setiap cicilan juga tercatat, sehingga sisa hutang selalu sesuai pembukuan.</p>
+
+      <h3>Mencatat hutang baru</h3>
+      <ol class="steps">
+        <li>Di kotak <strong>Catat transaksi</strong> (Dashboard atau menu <span class="ui">Hutang</span>), tulis siapa pemberi pinjamannya, nominalnya, dan keperluannya. Contoh: <span class="chat">pinjam dari Pak Budi 2jt untuk bayar sekolah</span>.</li>
+        <li>Klik <span class="ui">Pahami</span>. Aplikasi mengisi otomatis:
+          <ul>
+            <li><strong>Jenis</strong>: Pinjaman diterima</li>
+            <li><strong>Dipinjam dari</strong>: Pak Budi</li>
+            <li><strong>Keperluan (untuk apa)</strong>: bayar sekolah. Kata setelah <em>untuk</em>, <em>utk</em>, <em>buat</em>, atau <em>keperluan</em> dibaca sebagai keperluan.</li>
+            <li><strong>Tanggal</strong>: hari ini</li>
+          </ul>
+        </li>
+        <li>Periksa isiannya. <strong>Ubah tanggal</strong> jika hutangnya terjadi di hari lain (misalnya minggu lalu), lalu pilih akun <strong>Masuk ke akun</strong>, yaitu rekening atau dompet yang menerima uangnya.</li>
+        <li>Kolom <strong>Hutang</strong> biarkan <em>Otomatis</em>. Jika belum ada hutang ke Pak Budi, aplikasi membuat akun <em>"Pinjaman Pak Budi"</em>. Jika sudah ada, nominalnya ditambahkan ke hutang yang sama.</li>
+        <li>Klik <span class="ui">Simpan</span>.</li>
+      </ol>
+      <div class="note tip"><p><b>Lupa menulis keperluannya?</b> Isi langsung di kolom <strong>Keperluan (untuk apa)</strong> sebelum menyimpan. Kolom ini hanya muncul untuk jenis <em>Pinjaman diterima</em>.</p></div>
+
+      <h3>Contoh kalimat</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Anda menulis</th><th>Pihak</th><th>Keperluan</th></tr></thead>
+        <tbody>
+          <tr><td><span class="chat">pinjam dari Pak Budi 2jt untuk bayar sekolah</span></td><td>Pak Budi</td><td>bayar sekolah</td></tr>
+          <tr><td><span class="chat">ngutang ke Bu Rina buat keperluan modal usaha 5jt</span></td><td>Bu Rina</td><td>modal usaha</td></tr>
+          <tr><td><span class="chat">pinjam 10jt utk renovasi rumah dari Om Joko</span></td><td>Om Joko</td><td>renovasi rumah</td></tr>
+          <tr><td><span class="chat">pinjam dari Andi 300rb</span></td><td>Andi</td><td><em>(kosong, isi sendiri)</em></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>Mencicil atau melunasi hutang</h3>
+      <ol class="steps">
+        <li>Tulis <span class="chat">bayar hutang ke Pak Budi 500rb</span>, lalu klik <span class="ui">Pahami</span>.</li>
+        <li>Pilih akun <strong>Dibayar dari</strong>. Jika Anda punya <strong>lebih dari satu</strong> hutang ke pihak yang sama, pilih hutang mana yang dibayar di kolom <strong>Hutang</strong>.</li>
+        <li>Klik <span class="ui">Simpan</span>. Saldo rekening dan sisa hutang berkurang dengan jumlah yang sama. Pembayaran ini <strong>bukan</strong> pengeluaran, jadi laporan dan budget tidak membengkak.</li>
+      </ol>
+
+      <h3>Melihat catatan hutang</h3>
+      <p>Buka menu <span class="ui">Hutang</span>. Bagian atas halaman menampilkan <strong>Total sisa hutang</strong>. Di bawahnya ada satu kartu untuk setiap hutang:</p>
+      <ul>
+        <li><strong>Hutang kepada</strong> siapa, dan <strong>sejak</strong> tanggal berapa.</li>
+        <li><strong>Keperluan</strong>: semua keperluan pinjaman ke pihak itu.</li>
+        <li><strong>Dipinjam</strong>, <strong>Dibayar</strong>, dan <strong>Sisa</strong>.</li>
+        <li>Riwayat lengkap: tanggal, jenis (<span class="ui">Pinjam</span> atau <span class="ui">Bayar</span>), keperluan atau catatan, dan jumlah (+ menambah hutang, − mengurangi hutang).</li>
+      </ul>
+      <p>Tab <span class="ui">Belum lunas</span> hanya menampilkan hutang yang masih berjalan. Tab <span class="ui">Semua</span> juga menampilkan hutang yang sudah lunas, dengan tanda <strong>Lunas</strong>. Klik nama pihak untuk melihat semua transaksinya di menu Transaksi.</p>
+      <p>Di Dashboard, kotak <strong>Hutang per pihak</strong> menampilkan ringkasan sisa hutang ke setiap orang atau lembaga.</p>
+
+      <h3>Lewat Telegram</h3>
+      <p>Kirim kalimat yang sama ke bot, misalnya <span class="chat">pinjam dari Pak Budi 2jt untuk bayar sekolah</span>. Ringkasan sebelum disimpan menampilkan <strong>Keperluan: bayar sekolah</strong>. Kirim <code>/hutang</code> untuk melihat semua hutang yang belum lunas: tanggal, pihak, keperluan, dan sisanya. Lihat <a href="telegram-bot.html#b-pinjaman">panduan bot Telegram</a>.</p>
+
+      <h3>Salah catat?</h3>
+      <p>Pinjaman dan pembayaran hutang tidak bisa diedit. Batalkan transaksinya di menu <span class="ui">Transaksi</span>, lalu catat ulang dengan tanggal, pihak, atau keperluan yang benar. Transaksi yang dibatalkan tidak dihitung di catatan hutang.</p>
+
+      <h3>Hutang yang sudah ada sebelum memakai aplikasi</h3>
+      <p>Buka menu <span class="ui">Akun</span>, buat akun jenis <strong>Pinjaman</strong>, isi <strong>Hutang kepada (pihak)</strong> dan <strong>Sisa hutang saat ini</strong>. Hutang ini muncul di catatan hutang sebagai <em>Hutang awal</em>.</p>
+
       <h3>Membayar tagihan kartu kredit</h3>
-      <p>Pilih jenis <strong>Pembayaran hutang</strong>, lalu pilih akun kartu kredit di kolom <strong>Hutang</strong>.</p>
-      <p>Di Dashboard, kotak <strong>Hutang per pihak</strong> menunjukkan sisa hutang ke setiap orang atau lembaga. Klik nama pihak untuk melihat semua transaksinya.</p>
-      <div class="note warn"><p><b>Belum didukung:</b> mencatat uang yang Anda <b>pinjamkan</b> ke orang lain (piutang). Untuk sementara, catat sebagai pengeluaran atau transfer. Aplikasi akan mengingatkan Anda bila mengenali kalimat seperti "meminjamkan ke …".</p></div>
+      <p>Pilih jenis <strong>Pembayaran hutang</strong>, lalu pilih akun kartu kredit di kolom <strong>Hutang</strong>. Kartu kredit tidak ditampilkan di halaman Catatan Hutang, karena keperluannya sudah terlihat dari kategori setiap belanja.</p>
+
+      <div class="note warn"><p><b>Lindungi data pribadi:</b> cukup tulis nama panggilan pihak dan keperluan singkat, misalnya "bayar sekolah". Jangan isi nomor KTP, nomor rekening, nomor HP, atau detail kesehatan di kolom keperluan maupun catatan.</p></div>
+      <div class="note info"><p><b>Uang yang Anda pinjamkan ke orang lain</b> (piutang) bukan hutang. Buat akun jenis <strong>Piutang</strong> (misalnya "Piutang Andi"), lalu catat sebagai <em>Transfer</em> dari rekening Anda ke akun itu. Lihat <a href="#akun">bagian Membuat akun</a>.</p></div>
     </section>
 
     <section id="transaksi">

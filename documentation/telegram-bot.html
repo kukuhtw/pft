@@ -139,7 +139,8 @@ php artisan telegram:webhook set --url=https://xxxx.trycloudflare.com</code></pr
       <ol class="steps">
         <li>Kirim kalimat biasa, misalnya <span class="chat">makan siang 45rb</span>.</li>
         <li>Bot selalu bertanya <strong>"Dibayar dari pos mana?"</strong> (rekening, e-wallet, tunai, atau kartu kredit). Tekan salah satu tombol. Agar lebih cepat, sebut akunnya di kalimat, misalnya <code>makan siang 45rb pakai gopay</code> atau <code>parkir 5rb tunai</code>. Salah pilih? Tekan <strong>🏦 Ganti akun</strong> di ringkasan.</li>
-        <li>Bot menampilkan <strong>Periksa sebelum disimpan</strong>: jenis, nominal, tanggal, akun, dan kategori.</li>
+        <li>Jika kalimat tidak menyebut kategori (misalnya <span class="chat">bayar servis motor 350rb</span>), bot bertanya <strong>"Kategori pengeluarannya apa?"</strong>. Tekan kategori yang sesuai. Kalimat seperti <span class="chat">makan siang 45rb</span> atau <span class="chat">isi bensin 50rb</span> langsung dikenali tanpa pertanyaan.</li>
+        <li>Bot menampilkan <strong>Periksa sebelum disimpan</strong>: jenis, nominal, tanggal, akun, dan kategori. Kategori salah tebak? Tekan <strong>🏷 Ganti kategori</strong>.</li>
         <li>Tekan <span class="ui">✅ Simpan</span>. Jika jenisnya salah, tekan <span class="ui">🔁 Ganti jenis</span>. Untuk membatalkan, tekan <span class="ui">❌ Batal</span>.</li>
       </ol>
       <div class="pair">
@@ -167,10 +168,12 @@ php artisan telegram:webhook set --url=https://xxxx.trycloudflare.com</code></pr
       <div class="pair">
         <figure class="phone"><img src="images/chat-loan.png" alt="Chat: pinjam dari Pak Budi 1jt, bot menanyakan akun tujuan lalu menampilkan ringkasan dengan hutang Pinjaman Pak Budi" loading="lazy"><figcaption>Pinjaman otomatis dicatat ke hutang atas nama pihaknya.</figcaption></figure>
         <div>
-          <p><span class="chat">pinjam dari Pak Budi 1jt</span> menambah kas <strong>dan</strong> hutang ke Pak Budi. Pinjaman ini bukan pendapatan. Jika belum ada hutang ke Pak Budi, aplikasi membuat akun "Pinjaman Pak Budi" secara otomatis.</p>
+          <p><span class="chat">pinjam dari Pak Budi 1jt untuk bayar sekolah</span> menambah kas <strong>dan</strong> hutang ke Pak Budi. Pinjaman ini bukan pendapatan. Jika belum ada hutang ke Pak Budi, aplikasi membuat akun "Pinjaman Pak Budi" secara otomatis.</p>
+          <p>Tulis keperluannya setelah kata <em>untuk</em>, <em>buat</em>, atau <em>keperluan</em>. Ringkasan menampilkan <strong>Keperluan: bayar sekolah</strong>, dan keperluan itu tersimpan di catatan hutang bersama tanggal dan nama pihaknya.</p>
           <p><span class="chat">bayar hutang ke Budi 500rb</span> mengurangi hutang tersebut. Jika Anda punya beberapa hutang ke pihak yang sama, bot menanyakan <strong>"Hutang mana yang dibayar?"</strong>.</p>
           <p>Untuk membayar tagihan kartu kredit, kirim <span class="chat">bayar kartu kredit 2jt</span>, lalu pilih kartunya.</p>
-          <div class="note warn"><p>Uang yang Anda <b>pinjamkan</b> ke orang lain (piutang) belum didukung. Bot akan memberi tahu dan tidak mencatat apa pun.</p></div>
+          <p>Kirim <code>/hutang</code> untuk melihat semua hutang yang belum lunas: kepada siapa, tanggal dan keperluan setiap pinjaman, jumlah yang sudah dibayar, dan sisanya. Catatan lengkapnya ada di menu <span class="ui">Hutang</span> di web (lihat <a href="tutorial.html#hutang">panduan Catatan hutang</a>).</p>
+          <div class="note warn"><p>Uang yang Anda <b>pinjamkan</b> ke orang lain (piutang) tidak dicatat lewat bot. Bot akan memberi tahu cara mencatatnya di web dengan akun jenis Piutang.</p></div>
         </div>
       </div>
     </section>
@@ -184,6 +187,7 @@ php artisan telegram:webhook set --url=https://xxxx.trycloudflare.com</code></pr
             <tr><td><code>/saldo</code></td><td>Saldo semua akun dan kekayaan bersih</td></tr>
             <tr><td><code>/ringkasan</code></td><td>Pemasukan, pengeluaran, dan budget yang hampir habis bulan ini</td></tr>
             <tr><td><code>/terakhir</code></td><td>5 transaksi terakhir</td></tr>
+            <tr><td><code>/hutang</code></td><td>Catatan hutang yang belum lunas: pihak, tanggal, keperluan, dan sisa</td></tr>
             <tr><td><code>/batal</code></td><td>Membatalkan draf yang sedang berjalan</td></tr>
             <tr><td><code>/bantuan</code></td><td>Cara pakai dan contoh kalimat</td></tr>
             <tr><td><code>/putuskan</code></td><td>Memutus Telegram dari akun Anda</td></tr>
@@ -191,7 +195,7 @@ php artisan telegram:webhook set --url=https://xxxx.trycloudflare.com</code></pr
         </table></div>
         <figure class="phone"><img src="images/chat-reports.png" alt="Chat: /ringkasan menampilkan pemasukan, pengeluaran, dan budget yang perlu perhatian; /saldo menampilkan saldo per akun" loading="lazy"><figcaption>/ringkasan dan /saldo.</figcaption></figure>
       </div>
-      <div class="note warn"><p><b>Privasi:</b> balasan <code>/saldo</code> dan <code>/ringkasan</code> berisi data keuangan Anda dan tersimpan di riwayat chat Telegram. Aktifkan kunci layar atau Passcode Lock di Telegram, dan hapus chat jika ponsel dipakai bersama.</p></div>
+      <div class="note warn"><p><b>Privasi:</b> balasan <code>/saldo</code>, <code>/ringkasan</code>, dan <code>/hutang</code> berisi data keuangan Anda dan tersimpan di riwayat chat Telegram. Aktifkan kunci layar atau Passcode Lock di Telegram, dan hapus chat jika ponsel dipakai bersama.</p></div>
     </section>
 
     <section id="b-cek">
@@ -226,7 +230,9 @@ php artisan telegram:webhook set --url=https://xxxx.trycloudflare.com</code></pr
       <h3>Bisakah satu chat dipakai dua akun, atau satu akun dipakai dua chat?</h3>
       <p>Tidak. Satu akun hanya terhubung ke satu chat. Menautkan chat baru otomatis memindahkan tautannya.</p>
       <h3>Kategori yang dipilih bot salah.</h3>
-      <p>Tekan ❌ Batal lalu catat lewat web, tempat kategori bisa dipilih bebas. Jika sudah terlanjur tersimpan, batalkan di menu Transaksi lalu catat ulang.</p>
+      <p>Sebelum menyimpan, tekan <strong>🏷 Ganti kategori</strong> di ringkasan lalu pilih yang benar. Jika sudah terlanjur tersimpan, ubah kategorinya lewat tombol <span class="ui">Ubah</span> di menu Transaksi di web.</p>
+      <h3>Perintah /hutang tidak muncul di menu bot.</h3>
+      <p>Perintahnya tetap bisa diketik langsung. Agar muncul di menu, pengelola perlu mendaftarkan ulang webhook (lihat bagian A), karena menu perintah diperbarui saat itu.</p>
       <footer>Semua screenshot memakai data contoh fiktif ("Ani Contoh", "Pak Budi", "PT Maju Jaya"). Gambar percakapan adalah ilustrasi yang disusun dari balasan asli bot aplikasi.</footer>
     </section>
   </main>
