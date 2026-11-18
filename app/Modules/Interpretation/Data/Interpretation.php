@@ -28,6 +28,8 @@ final readonly class Interpretation
         public array $signals = [],
         public array $warnings = [],
         public string $source = 'heuristic',
+        /** What a loan was taken for (LOAN_RECEIVED only). */
+        public ?string $purpose = null,
     ) {}
 
     /**
@@ -42,6 +44,7 @@ final readonly class Interpretation
             'confidence' => $this->confidence->value,
             'counterparty' => $this->counterparty,
             'activity' => $this->activity,
+            'purpose' => $this->purpose,
             'category_code' => $this->categoryCode,
             'amount' => $this->amount,
             'signals' => $this->signals,
@@ -67,6 +70,7 @@ final readonly class Interpretation
                 'confidence' => ['type' => 'string', 'enum' => array_column(Confidence::cases(), 'value')],
                 'counterparty' => ['type' => ['string', 'null'], 'maxLength' => 128, 'description' => 'Party money came from or went to'],
                 'activity' => ['type' => ['string', 'null'], 'maxLength' => 64, 'description' => 'Activity that earned ACTIVITY_INCOME'],
+                'purpose' => ['type' => ['string', 'null'], 'maxLength' => 128, 'description' => 'What a LOAN_RECEIVED was taken for, e.g. "bayar sekolah"'],
                 'category_code' => ['type' => ['string', 'null'], 'description' => 'Income/expense category code, e.g. SALARY, FREELANCE, BUSINESS'],
                 'amount' => ['type' => ['string', 'null'], 'pattern' => '^\d{1,18}(\.\d{1,2})?$', 'description' => 'Decimal string, no float'],
             ],

@@ -1,6 +1,6 @@
 <section class="rounded-lg border border-slate-200 bg-white p-5">
     <h2 class="mb-1 font-semibold">Catat transaksi</h2>
-    <p class="mb-3 text-sm text-slate-500">Tulis seperti chat, misalnya <em>"gaji November 10jt"</em>, <em>"pinjam dari Pak Budi 2jt"</em>, <em>"hasil jualan kue 500rb"</em>, atau <em>"bayar hutang ke Budi 1jt"</em>.</p>
+    <p class="mb-3 text-sm text-slate-500">Tulis seperti chat, misalnya <em>"gaji November 10jt"</em>, <em>"pinjam dari Pak Budi 2jt untuk bayar sekolah"</em>, <em>"hasil jualan kue 500rb"</em>, atau <em>"bayar hutang ke Budi 1jt"</em>.</p>
 
     @if ($flash)
         <div class="mb-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800" role="status">{{ $flash }}</div>
@@ -127,6 +127,15 @@
                                 <option value="{{ $debt->id }}">{{ $debt->name }}{{ $debt->counterparty ? ' — '.$debt->counterparty->name : '' }} (sisa {{ $debt->balance()->format() }})</option>
                             @endforeach
                         </select>
+                    </label>
+                @endif
+
+                @if ($intent === 'LOAN_RECEIVED')
+                    <label class="block text-sm sm:col-span-2">
+                        <span class="mb-1 block font-medium">Keperluan (untuk apa)</span>
+                        <input wire:model="purpose" type="text" maxlength="128" placeholder="mis. bayar sekolah, modal usaha, servis motor" class="w-full rounded-md border border-slate-300 px-3 py-2">
+                        <span class="mt-1 block text-xs text-slate-500">Cukup tulis keperluannya. Jangan isi nomor KTP, nomor rekening, atau data pribadi lain.</span>
+                        @error('purpose') <span class="mt-1 block text-red-600">{{ $message }}</span> @enderror
                     </label>
                 @endif
 

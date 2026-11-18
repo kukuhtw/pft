@@ -16,6 +16,7 @@ final readonly class TelegramSetupService
         ['command' => 'saldo', 'description' => 'Saldo semua akun'],
         ['command' => 'ringkasan', 'description' => 'Ringkasan & budget bulan ini'],
         ['command' => 'terakhir', 'description' => '5 transaksi terakhir'],
+        ['command' => 'hutang', 'description' => 'Catatan hutang & sisanya'],
         ['command' => 'batal', 'description' => 'Batalkan draf'],
         ['command' => 'bantuan', 'description' => 'Cara pakai'],
         ['command' => 'putuskan', 'description' => 'Putuskan Telegram dari akun'],

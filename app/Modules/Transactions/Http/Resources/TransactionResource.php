@@ -49,6 +49,7 @@ final class TransactionResource extends JsonResource
                 'kind' => $this->counterparty->kind->value,
             ]),
             'activity' => $this->activity,
+            'purpose' => $this->purpose,
             // The liability side of a loan received / debt repayment ("which debt").
             'debt_account_id' => match ($this->type) {
                 TransactionType::LIABILITY_DRAWDOWN => $this->source_account_id,

@@ -36,6 +36,8 @@ final readonly class TransactionInput
         public ?string $activity = null,
         /** The liability (LOAN / CREDIT_CARD account) a loan-received or debt-payment entry belongs to. */
         public ?string $debtAccountId = null,
+        /** What a loan was taken for, e.g. "bayar sekolah", "modal usaha" (LOAN_RECEIVED only). */
+        public ?string $purpose = null,
     ) {}
 
     /** Copy with resolved source/destination accounts (used once a debt account is resolved). */
@@ -57,6 +59,7 @@ final readonly class TransactionInput
             counterpartyName: $this->counterpartyName,
             activity: $this->activity,
             debtAccountId: $this->debtAccountId,
+            purpose: $this->purpose,
         );
     }
 
@@ -81,6 +84,7 @@ final readonly class TransactionInput
             'counterparty' => $this->counterpartyName,
             'activity' => $this->activity,
             'debt_account' => $this->debtAccountId,
+            'purpose' => $this->purpose,
         ];
     }
 }

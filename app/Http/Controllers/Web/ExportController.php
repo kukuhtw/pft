@@ -28,7 +28,7 @@ final class ExportController extends Controller
     /** Columns of the transaction CSV, in order. */
     private const array CSV_COLUMNS = [
         'tanggal', 'status', 'jenis_akuntansi', 'makna', 'nominal', 'mata_uang', 'akun_sumber', 'akun_tujuan',
-        'kategori', 'pihak', 'aktivitas', 'merchant', 'deskripsi', 'no_referensi', 'metode_bayar', 'kanal', 'id',
+        'kategori', 'pihak', 'aktivitas', 'keperluan', 'merchant', 'deskripsi', 'no_referensi', 'metode_bayar', 'kanal', 'id',
     ];
 
     public function transactionsCsv(Request $request, AuditLogger $audit): StreamedResponse
@@ -69,6 +69,7 @@ final class ExportController extends Controller
                         $t->category?->name,
                         $t->counterparty?->name,
                         $t->activity,
+                        $t->purpose,
                         $t->merchant?->name,
                         $t->description,
                         $t->reference_number,
@@ -110,7 +111,7 @@ final class ExportController extends Controller
                 'id' => $t->id, 'date' => $t->transaction_date->toDateString(), 'type' => $t->type->value, 'intent' => $t->intent?->value,
                 'status' => $t->status->value, 'amount' => Money::fromDatabase($t->getRawOriginal('amount'), $t->currency_code)->amount, 'currency' => $t->currency_code,
                 'source_account_id' => $t->source_account_id, 'destination_account_id' => $t->destination_account_id,
-                'category' => $t->category?->name, 'counterparty' => $t->counterparty?->name, 'activity' => $t->activity,
+                'category' => $t->category?->name, 'counterparty' => $t->counterparty?->name, 'activity' => $t->activity, 'purpose' => $t->purpose,
                 'description' => $t->description, 'reference_number' => $t->reference_number, 'channel' => $t->channel->value,
             ]),
         ];

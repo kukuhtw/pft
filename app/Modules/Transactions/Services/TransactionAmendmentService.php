@@ -99,6 +99,7 @@ final readonly class TransactionAmendmentService
                 metadata: ['amends' => $original->id],
                 counterpartyName: $intent === TransactionIntent::INTERNAL_TRANSFER ? null : $original->counterparty?->name,
                 activity: $original->activity,
+                purpose: $original->purpose,
             ));
 
             if ($replacement->intent !== $intent) {

@@ -66,6 +66,20 @@ final class TextAnalyzerTest extends TestCase
         $this->assertSame(TextAnalyzer::LENDING_OUT, $detected['warning']);
     }
 
+    public function test_reads_what_a_loan_was_for(): void
+    {
+        $a = new TextAnalyzer;
+
+        $this->assertSame('bayar sekolah', $a->purpose('pinjam dari Pak Budi 2jt untuk bayar sekolah'));
+        $this->assertSame('modal usaha', $a->purpose('ngutang ke bu rina buat keperluan modal usaha 5jt'));
+        $this->assertSame('renovasi rumah', $a->purpose('pinjam 10jt utk renovasi rumah dari Om Joko'));
+        $this->assertSame('biaya rumah sakit', $a->purpose('hutang untuk kebutuhan biaya rumah sakit, masuk BCA'));
+        $this->assertNull($a->purpose('pinjam dari Pak Budi 2jt'));
+        $this->assertNull($a->purpose('pinjam untuk 2jt'));
+        $this->assertSame('Pak Budi', (new HeuristicTextInterpreter($a))->interpret('pinjam dari Pak Budi 2jt untuk bayar sekolah')->counterparty);
+        $this->assertNull((new HeuristicTextInterpreter($a))->interpret('beli buku untuk sekolah 50rb')->purpose, 'Only loans carry a purpose.');
+    }
+
     public function test_amount_formats(): void
     {
         $a = new TextAnalyzer;

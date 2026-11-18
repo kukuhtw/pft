@@ -45,6 +45,9 @@ final class QuickEntry extends Component
 
     public string $activity = '';
 
+    /** Catatan hutang: what the loan is for (LOAN_RECEIVED). */
+    public string $purpose = '';
+
     public string $description = '';
 
     public string $categoryId = '';
@@ -84,6 +87,7 @@ final class QuickEntry extends Component
         $this->amount = $result['amount']?->amount !== null ? MoneyInput::format($result['amount']->amount) : '';
         $this->counterparty = (string) ($result['counterparty']['name'] ?? '');
         $this->activity = (string) ($result['activity'] ?? '');
+        $this->purpose = (string) ($result['purpose'] ?? '');
         $this->description = Str::limit($this->text, 255, '');
         $this->categoryId = (string) ($result['category']['id'] ?? '');
         $this->debtAccountId = (string) ($result['suggested_request']['body']['debt_account_id'] ?? '');
@@ -124,6 +128,7 @@ final class QuickEntry extends Component
             counterpartyName: $intent === TransactionIntent::INTERNAL_TRANSFER ? null : $this->blankToNull($this->counterparty),
             activity: $intent === TransactionIntent::ACTIVITY_INCOME ? $this->blankToNull($this->activity) : null,
             debtAccountId: $this->blankToNull($this->debtAccountId),
+            purpose: $intent === TransactionIntent::LOAN_RECEIVED ? $this->blankToNull($this->purpose) : null,
         );
 
         try {
@@ -197,6 +202,7 @@ final class QuickEntry extends Component
             'description' => ['nullable', 'string', 'max:255'],
             'counterparty' => [$this->needsParty($intent) ? 'required_without:debtAccountId' : 'nullable', 'nullable', 'string', 'max:128'],
             'activity' => ['nullable', 'string', 'max:64'],
+            'purpose' => ['nullable', 'string', 'max:128'],
             'categoryId' => [in_array($intent, [TransactionIntent::EXPENSE], true) || $intent?->isIncome() ? 'required' : 'nullable', 'nullable', 'string', 'ulid'],
             'sourceAccountId' => [$this->needsSource($intent) ? 'required' : 'nullable', 'nullable', 'string', 'ulid'],
             'destinationAccountId' => [$this->needsDestination($intent) ? 'required' : 'nullable', 'nullable', 'string', 'ulid', 'different:sourceAccountId'],
@@ -205,7 +211,7 @@ final class QuickEntry extends Component
             'counterparty.required_without' => 'Isi nama pihak atau pilih akun hutang.',
         ], [
             'intent' => 'jenis transaksi', 'amount' => 'nominal', 'transactionDate' => 'tanggal', 'counterparty' => 'pihak',
-            'categoryId' => 'kategori', 'sourceAccountId' => 'akun sumber', 'destinationAccountId' => 'akun tujuan',
+            'categoryId' => 'kategori', 'purpose' => 'keperluan', 'sourceAccountId' => 'akun sumber', 'destinationAccountId' => 'akun tujuan',
         ]);
 
         return $intent ?? throw new \LogicException('validated');
@@ -256,7 +262,7 @@ final class QuickEntry extends Component
     private function resetForm(bool $keepText = false): void
     {
         $text = $this->text;
-        $this->reset(['intent', 'amount', 'counterparty', 'activity', 'description', 'categoryId', 'sourceAccountId', 'destinationAccountId', 'debtAccountId', 'warnings', 'confidence']);
+        $this->reset(['intent', 'amount', 'counterparty', 'activity', 'purpose', 'description', 'categoryId', 'sourceAccountId', 'destinationAccountId', 'debtAccountId', 'warnings', 'confidence']);
         $this->text = $keepText ? $text : '';
         $this->transactionDate = CarbonImmutable::now((string) config('finance.display_timezone'))->toDateString();
         $this->idempotencyKey = 'web-'.Str::uuid()->toString();

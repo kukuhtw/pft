@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Modules\Accounts\Models\FinancialAccount;
 use App\Modules\Budgets\Services\BudgetService;
 use App\Modules\Categories\Models\TransactionCategory;
+use App\Modules\Debts\Services\DebtRegisterService;
 use App\Modules\Interpretation\Enums\TransactionIntent;
 use App\Modules\Interpretation\Services\AccountMentionMatcher;
 use App\Modules\Interpretation\Services\EntryInterpretationService;
@@ -58,6 +59,7 @@ final readonly class TelegramBotService
         private FinancialSummaryService $summaries,
         private BudgetService $budgets,
         private AccountMentionMatcher $mentions,
+        private DebtRegisterService $debtRegister,
     ) {}
 
     /** @param  array<string, mixed>  $update */
@@ -122,6 +124,7 @@ final readonly class TelegramBotService
             '/saldo' => $this->telegram->sendMessage($chatId, $this->balancesText($user)),
             '/ringkasan' => $this->telegram->sendMessage($chatId, $this->summaryText($user)),
             '/terakhir' => $this->telegram->sendMessage($chatId, $this->recentText($user)),
+            '/hutang' => $this->telegram->sendMessage($chatId, $this->debtsText($user)),
             '/batal' => $this->cancelDraft($chatId),
             '/putuskan' => $this->unlink($chatId, $user),
             null => $this->handleText($chatId, $user, $text),
@@ -201,6 +204,7 @@ final readonly class TelegramBotService
             'date' => CarbonImmutable::now($this->timezone())->toDateString(),
             'counterparty' => $result['counterparty']['name'] ?? null,
             'activity' => $result['activity'] ?? null,
+            'purpose' => $result['purpose'] ?? null,
             'category_id' => $result['category']['id'] ?? null,
             'source' => null,
             'destination' => null,
@@ -464,6 +468,7 @@ final readonly class TelegramBotService
                 counterpartyName: $draft['counterparty'] === null || $intent === TransactionIntent::INTERNAL_TRANSFER ? null : Str::limit((string) $draft['counterparty'], 128, ''),
                 activity: $intent === TransactionIntent::ACTIVITY_INCOME && $draft['activity'] !== null ? Str::limit((string) $draft['activity'], 64, '') : null,
                 debtAccountId: $draft['debt_account_id'],
+                purpose: $intent === TransactionIntent::LOAN_RECEIVED && ($draft['purpose'] ?? null) !== null ? Str::limit((string) $draft['purpose'], 128, '') : null,
             ));
         } catch (DomainException $e) {
             $this->telegram->editMessage($chatId, $messageId, '❌ Tidak tersimpan: '.$this->e($e->getMessage())."\nKetik ulang transaksinya.");
@@ -532,6 +537,34 @@ final readonly class TelegramBotService
         return count($lines) === 4 ? 'Belum ada akun. Buat akun pertama di web: menu Akun.' : implode("\n", $lines);
     }
 
+    private function debtsText(User $user): string
+    {
+        $rows = $this->debtRegister->register($user, includeSettled: false);
+        if ($rows === []) {
+            return 'Tidak ada hutang yang belum lunas. 🎉';
+        }
+
+        $lines = ['<b>Catatan hutang</b>'];
+        foreach (array_slice($rows, 0, 15) as $row) {
+            $lines[] = '';
+            $lines[] = sprintf('🔻 <b>%s</b>: sisa <b>%s</b>', $this->e($row['party']), $row['remaining']->format());
+            foreach (array_filter($row['entries'], static fn (array $e): bool => $e['increases']) as $entry) {
+                $lines[] = sprintf(
+                    '• %s, pinjam %s%s',
+                    $entry['date']->translatedFormat('d M Y'),
+                    $entry['amount']->format(),
+                    $entry['purpose'] !== null ? ' untuk '.$this->e($entry['purpose']) : '',
+                );
+            }
+            if ($row['repaid']->isPositive()) {
+                $lines[] = '• sudah dibayar '.$row['repaid']->format();
+            }
+        }
+
+        return implode('
+', $lines);
+    }
+
     private function summaryText(User $user): string
     {
         $s = $this->summaries->summarize($user, $this->now()->startOfMonth(), $this->now(), $this->currency());
@@ -593,6 +626,9 @@ final readonly class TelegramBotService
             $category !== null ? 'Kategori: '.$this->e($category->name) : null,
             $draft['counterparty'] !== null && $intent !== TransactionIntent::INTERNAL_TRANSFER ? 'Pihak: '.$this->e($draft['counterparty']) : null,
             $intent === TransactionIntent::ACTIVITY_INCOME && $draft['activity'] !== null ? 'Aktivitas: '.$this->e($draft['activity']) : null,
+            $intent === TransactionIntent::LOAN_RECEIVED
+                ? 'Keperluan: '.(($draft['purpose'] ?? null) !== null ? $this->e((string) $draft['purpose']) : '<i>belum disebut — tambahkan "untuk …" di teks bila perlu</i>')
+                : null,
         ]);
 
         foreach ($draft['warnings'] as $warning) {
@@ -621,13 +657,14 @@ final readonly class TelegramBotService
             '• <code>gaji November 10jt</code>',
             '• <code>makan siang 45rb</code>',
             '• <code>transfer BCA ke BNI 2jt</code>',
-            '• <code>pinjam dari Budi 2jt</code>',
+            '• <code>pinjam dari Budi 2jt untuk bayar sekolah</code>',
             '• <code>bayar hutang ke Budi 1jt</code>',
             '',
             'Saya akan menanyakan akunnya bila perlu, lalu menampilkan ringkasan. Tidak ada yang dicatat sebelum Anda menekan ✅ Simpan.',
             '',
             '/saldo: saldo semua akun',
             '/ringkasan: pemasukan, pengeluaran, dan budget bulan ini',
+            '/hutang: catatan hutang (kapan, ke siapa, untuk apa, sisa)',
             '/terakhir: 5 transaksi terakhir',
             '/batal: batalkan draf',
             '/putuskan: putuskan Telegram dari akun',

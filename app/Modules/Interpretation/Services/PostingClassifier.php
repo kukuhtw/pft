@@ -95,11 +95,17 @@ final class PostingClassifier
             $activity = $this->text->activity($input->description) ?? $category?->name;
         }
 
+        // Catatan hutang: keep what a loan was for — explicit input first, else read from the text.
+        $purpose = $intent === TransactionIntent::LOAN_RECEIVED
+            ? ($this->clean($input->purpose) ?? $this->text->purpose($input->description))
+            : null;
+
         return new Interpretation(
             intent: $intent,
             confidence: $confidence,
             counterparty: $counterparty,
             activity: $activity !== null ? mb_substr($activity, 0, 64) : null,
+            purpose: $purpose !== null ? mb_substr($purpose, 0, 128) : null,
             categoryCode: $category?->code,
             amount: $input->amount,
             signals: array_values(array_unique($signals)),
@@ -166,5 +172,12 @@ final class PostingClassifier
         }
 
         return $name;
+    }
+
+    private function clean(?string $value): ?string
+    {
+        $value = $value === null ? '' : trim($value);
+
+        return $value === '' ? null : $value;
     }
 }
