@@ -54,6 +54,18 @@ final class WebDashboardTest extends TestCase
         $this->get('/')->assertOk()->assertSee('Buka dashboard');
     }
 
+    public function test_landing_page_shows_the_self_hosting_contact_and_can_hide_it(): void
+    {
+        config(['landing.contact.name' => 'Kukuh TW', 'landing.contact.whatsapp' => '628129893706']);
+        $this->get('/')->assertOk()
+            ->assertSee('Kukuh TW')
+            ->assertSee('https://wa.me/628129893706?text=', false)
+            ->assertSee('id="kontak"', false);
+
+        config(['landing.contact.whatsapp' => '']);
+        $this->get('/')->assertOk()->assertDontSee('wa.me', false)->assertDontSee('id="kontak"', false);
+    }
+
     public function test_login_success_and_generic_failure_message(): void
     {
         $user = $this->provisionedUser(['email' => 'ani@example.test', 'password' => 'Rahasia-Kuat-123']);
