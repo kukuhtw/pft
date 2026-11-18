@@ -12,6 +12,11 @@
         $registrationOpen = \App\Modules\Identity\Services\AccessPolicy::registrationEnabled() && ! auth()->check();
         $primaryUrl = auth()->check() ? route('dashboard') : ($registrationOpen ? route('register') : route('login'));
         $primaryLabel = auth()->check() ? 'Buka dashboard' : ($registrationOpen ? 'Coba gratis sekarang' : 'Masuk');
+        $contactName = (string) config('landing.contact.name');
+        $contactWhatsapp = (string) config('landing.contact.whatsapp');
+        $contactUrl = $contactWhatsapp !== ''
+            ? 'https://wa.me/'.$contactWhatsapp.'?text='.rawurlencode((string) config('landing.contact.message'))
+            : null;
     @endphp
 
     {{-- NAV --}}
@@ -24,6 +29,9 @@
                 <a href="#keamanan" class="hover:text-slate-900">Keamanan</a>
                 <a href="#self-hosting" class="hover:text-slate-900">Self-hosting</a>
                 <a href="#tanya-jawab" class="hover:text-slate-900">Tanya jawab</a>
+                @if ($contactUrl)
+                    <a href="#kontak" class="hover:text-slate-900">Kontak</a>
+                @endif
             </nav>
             <div class="flex items-center gap-2 text-sm">
                 @guest
@@ -252,6 +260,19 @@
                     <p class="mt-5 text-xs text-slate-500">Panduan lengkap tersedia di <code>docs/deployment/dokploy.md</code> pada repository.</p>
                 </div>
             </div>
+
+            @if ($contactUrl)
+                <div id="kontak" class="mt-10 flex flex-col items-start justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 sm:flex-row sm:items-center">
+                    <div>
+                        <h3 class="font-semibold">Ingin dibantu memasang versi self-hosted?</h3>
+                        <p class="mt-1 text-sm text-slate-600">Untuk informasi lebih lanjut atau minat pemasangan aplikasi open source ini di server Anda sendiri, hubungi <strong>{{ $contactName }}</strong>.</p>
+                    </div>
+                    <a href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex shrink-0 items-center gap-2 rounded-md bg-emerald-700 px-5 py-3 text-sm font-medium text-white hover:bg-emerald-600">
+                        <span aria-hidden="true">💬</span> Chat WhatsApp {{ $contactName }}
+                    </a>
+                </div>
+            @endif
         </section>
 
         {{-- FAQ --}}
@@ -287,6 +308,9 @@
                 <a href="{{ $primaryUrl }}" class="rounded-md bg-slate-900 px-6 py-3 text-sm font-medium text-white hover:bg-slate-700">{{ $primaryLabel }}</a>
                 <a href="#self-hosting" class="rounded-md border border-slate-300 px-6 py-3 text-sm font-medium hover:bg-slate-100">Pasang di server sendiri</a>
             </div>
+            @if ($contactUrl)
+                <p class="mt-6 text-sm text-slate-600">Minat pasang self-hosted? Hubungi {{ $contactName }} via <a href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer" class="font-medium text-emerald-700 underline">WhatsApp</a>.</p>
+            @endif
         </section>
     </main>
 
