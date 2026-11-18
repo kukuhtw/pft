@@ -29,6 +29,7 @@
                 <a href="#keamanan" class="hover:text-slate-900">Keamanan</a>
                 <a href="#self-hosting" class="hover:text-slate-900">Self-hosting</a>
                 <a href="#tanya-jawab" class="hover:text-slate-900">Tanya jawab</a>
+                <a href="{{ route('docs') }}" class="hover:text-slate-900">Panduan</a>
                 @if ($contactUrl)
                     <a href="#kontak" class="hover:text-slate-900">Kontak</a>
                 @endif
@@ -216,6 +217,11 @@
                 <li class="rounded-xl border border-slate-200 p-5"><p class="text-sm font-medium text-emerald-700">Langkah 2</p><h3 class="mt-1 font-semibold">Catat seperti mengirim chat</h3><p class="mt-1 text-sm text-slate-600">Dari web atau Telegram. Periksa ringkasan yang ditampilkan, lalu tekan Simpan.</p></li>
                 <li class="rounded-xl border border-slate-200 p-5"><p class="text-sm font-medium text-emerald-700">Langkah 3</p><h3 class="mt-1 font-semibold">Lihat ke mana uang pergi</h3><p class="mt-1 text-sm text-slate-600">Dashboard, budget, dan laporan langsung terbarui, dengan angka yang bisa dipertanggungjawabkan.</p></li>
             </ol>
+            <p class="mt-6 text-sm text-slate-600">
+                Butuh langkah lengkap? Baca <a href="{{ route('docs') }}" class="font-medium text-emerald-700 underline">panduan pengguna</a>
+                (akun, mencatat transaksi, catatan hutang, budget, laporan) dan
+                <a href="{{ route('docs.file', ['path' => 'telegram-bot.html']) }}" class="font-medium text-emerald-700 underline">panduan bot Telegram</a>.
+            </p>
         </section>
 
         {{-- SECURITY --}}
@@ -317,6 +323,10 @@
     <footer class="border-t border-slate-200">
         <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-xs text-slate-500">
             <p>💰 {{ config('app.name') }} · pembukuan pribadi yang jujur</p>
+            <p class="flex gap-4">
+                <a href="{{ route('docs') }}" class="hover:text-slate-900 hover:underline">Panduan pengguna</a>
+                <a href="{{ route('docs.file', ['path' => 'telegram-bot.html']) }}" class="hover:text-slate-900 hover:underline">Panduan bot Telegram</a>
+            </p>
             <p>Bukan nasihat keuangan atau investasi. Aplikasi ini membantu mencatat, keputusan tetap di tangan Anda.</p>
         </div>
     </footer>
