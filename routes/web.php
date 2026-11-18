@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Web\DocumentationController;
 use App\Http\Controllers\Web\ExportController;
 use App\Http\Controllers\Web\LogoutController;
 use App\Http\Middleware\EnsureEmailAllowed;
@@ -18,6 +19,13 @@ use App\Livewire\Transactions;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing')->name('home');
+
+// Public user guides (static files in /documentation). Relative links inside them need the file name in the URL.
+Route::redirect('/dokumentasi', '/dokumentasi/tutorial.html')->name('docs');
+Route::get('/dokumentasi/{path}', DocumentationController::class)
+    ->where('path', '(?:images/)?[A-Za-z0-9][A-Za-z0-9_-]*\.[a-z]{2,4}')
+    ->middleware('throttle:120,1')
+    ->name('docs.file');
 
 Route::middleware('guest')->group(function (): void {
     Route::livewire('/login', Login::class)->name('login');
