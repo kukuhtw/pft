@@ -286,6 +286,28 @@ final class TelegramBotTest extends TestCase
         $this->assertLedgerIntact($user);
     }
 
+    public function test_loan_purpose_is_confirmed_and_listed_by_the_hutang_command(): void
+    {
+        $user = $this->linkedUser(1001);
+        $bca = $this->openAccount($user, 'BCA', 'BANK', opening: 0);
+
+        $this->say(1001, '/hutang');
+        $this->assertStringContainsString('Tidak ada hutang', $this->lastReply()['text']);
+
+        $this->say(1001, 'pinjam dari Pak Budi 2jt untuk bayar sekolah');
+        $this->tap(1001, 'd:'.$bca->id);
+        $this->assertStringContainsString('Keperluan: bayar sekolah', $this->lastReply()['text']);
+        $this->tap(1001, 'ok');
+
+        $this->assertSame('bayar sekolah', Transaction::query()->where('user_id', $user->id)->where('intent', 'LOAN_RECEIVED')->sole()->purpose);
+
+        $this->say(1001, '/hutang');
+        $text = $this->lastReply()['text'];
+        $this->assertStringContainsString('Pak Budi', $text);
+        $this->assertStringContainsString('untuk bayar sekolah', $text);
+        $this->assertStringContainsString('Rp2.000.000', $text);
+    }
+
     public function test_bot_asks_for_a_missing_amount_and_intent_can_be_changed(): void
     {
         $user = $this->linkedUser(1001);

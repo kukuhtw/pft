@@ -93,6 +93,19 @@ final class TextAnalyzer
 
     private const array ACTIVITY_EXTRA_STOPS = ['pt', 'cv', 'ud', 'tbk', 'hasil', 'pak', 'bu', 'bapak', 'ibu', 'mas', 'mbak', 'klien', 'client'];
 
+    /** Words that introduce what a loan is for. */
+    private const array PURPOSE_MARKERS = ['untuk', 'utk', 'buat', 'bwt', 'keperluan', 'guna', 'for'];
+
+    /** Skipped right after a marker: "untuk keperluan …", "buat biaya …" keeps the real subject. */
+    private const array PURPOSE_FILLERS = ['keperluan', 'kebutuhan', 'keperluannya', 'kebutuhannya'];
+
+    /** Tokens that end a purpose phrase (the lender, the account, the amount or the date follow). */
+    private const array PURPOSE_STOPS = [
+        'dari', 'dr', 'oleh', 'sama', 'sm', 'ama', 'via', 'lewat', 'pakai', 'pake', 'masuk', 'ditransfer', 'transfer', 'tf',
+        'tgl', 'tanggal', 'sebesar', 'senilai', 'sejumlah', 'rp', 'idr', 'jt', 'juta', 'rb', 'ribu', 'k', 'from', 'kemarin',
+        'kemaren', 'tadi', 'cash', 'tunai', 'rekening', 'rek',
+    ];
+
     private const array UPPERCASE_TOKENS = ['pt', 'cv', 'ud', 'pd', 'tbk', 'bca', 'bni', 'bri', 'bsi', 'cimb', 'ojk'];
 
     /** Banks, e-wallets and cash: words that name one of the user's own accounts. */
@@ -201,6 +214,51 @@ final class TextAnalyzer
 
                     return mb_substr($phrase, 0, 64);
                 }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * What a loan was taken for: "pinjam dari Budi 2jt untuk bayar sekolah" → "bayar sekolah",
+     * "ngutang ke bu rina buat keperluan modal usaha" → "modal usaha".
+     */
+    public function purpose(?string $text): ?string
+    {
+        if ($text === null || trim($text) === '') {
+            return null;
+        }
+
+        $tokens = preg_split('/\s+/u', trim($text)) ?: [];
+
+        foreach ($tokens as $i => $token) {
+            if (! in_array($this->bare($token), self::PURPOSE_MARKERS, true)) {
+                continue;
+            }
+
+            $words = [];
+            for ($j = $i + 1, $n = count($tokens); $j < $n && count($words) < 8; $j++) {
+                $raw = $tokens[$j];
+                $clean = rtrim((string) preg_replace('/^[^\p{L}\p{N}]+|[^\p{L}\p{N}.]+$/u', '', $raw), '.');
+                $bare = mb_strtolower($clean);
+
+                if ($words === [] && in_array($bare, self::PURPOSE_FILLERS, true)) {
+                    continue; // "untuk keperluan renovasi" → "renovasi"
+                }
+                if ($bare === '' || in_array($bare, self::PURPOSE_STOPS, true) || preg_match('/\d/u', $bare) === 1) {
+                    break;
+                }
+
+                $words[] = $clean;
+
+                if (preg_match('/[,;:)\-]$/u', $raw) === 1) {
+                    break;
+                }
+            }
+
+            if ($words !== []) {
+                return mb_substr(implode(' ', $words), 0, 128);
             }
         }
 

@@ -41,6 +41,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $merchant_id
  * @property string|null $counterparty_id
  * @property string|null $activity
+ * @property string|null $purpose what a loan was taken for (LOAN_RECEIVED)
  * @property string|null $description
  * @property string|null $reference_number
  * @property PaymentMethod|null $payment_method
@@ -61,7 +62,7 @@ class Transaction extends Model
 
     protected $fillable = [
         'user_id', 'type', 'intent', 'status', 'transaction_date', 'amount', 'currency_code', 'source_account_id',
-        'destination_account_id', 'category_id', 'merchant_id', 'counterparty_id', 'activity', 'description', 'reference_number',
+        'destination_account_id', 'category_id', 'merchant_id', 'counterparty_id', 'activity', 'purpose', 'description', 'reference_number',
         'payment_method', 'channel', 'metadata', 'created_by', 'posted_at',
     ];
 

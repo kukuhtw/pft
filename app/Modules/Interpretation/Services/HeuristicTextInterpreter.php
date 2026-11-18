@@ -33,6 +33,7 @@ final class HeuristicTextInterpreter implements TextInterpreter
             amount: $this->text->amount($text, $currency),
             signals: $detected['keyword'] !== null ? ['keyword:'.$detected['keyword']] : [],
             warnings: array_values(array_filter([$detected['warning'], $intent === null && $detected['warning'] === null ? 'INTENT_UNKNOWN' : null])),
+            purpose: $intent === TransactionIntent::LOAN_RECEIVED ? $this->text->purpose($text) : null,
         );
     }
 }

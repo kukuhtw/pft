@@ -11,6 +11,7 @@ use App\Livewire\Auth\Register;
 use App\Livewire\Budgets;
 use App\Livewire\Categories;
 use App\Livewire\Dashboard;
+use App\Livewire\Debts;
 use App\Livewire\Profile;
 use App\Livewire\Reports;
 use App\Livewire\Transactions;
@@ -29,6 +30,7 @@ Route::middleware(['auth', EnsureEmailAllowed::class])->group(function (): void 
     Route::livewire('/accounts', Accounts::class)->name('accounts');
     Route::livewire('/categories', Categories::class)->name('categories');
     Route::livewire('/budgets', Budgets::class)->name('budgets');
+    Route::livewire('/hutang', Debts::class)->name('debts');
     Route::livewire('/reports', Reports::class)->name('reports');
     Route::livewire('/profile', Profile::class)->name('profile');
     Route::livewire('/panduan/telegram', TelegramGuide::class)->name('telegram.guide');

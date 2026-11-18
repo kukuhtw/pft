@@ -55,6 +55,7 @@ final class EntryInterpretationService
             'debt_account_id' => count($debtAccounts) === 1 ? $debtAccounts[0]['id'] : null,
             'category_id' => $category?->id,
             'activity' => $result->activity,
+            'purpose' => $result->purpose,
             'description' => mb_substr($text, 0, 255),
         ], static fn ($v): bool => $v !== null);
 

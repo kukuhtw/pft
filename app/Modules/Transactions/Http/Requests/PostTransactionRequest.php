@@ -45,6 +45,7 @@ abstract class PostTransactionRequest extends FormRequest
             // Semantics: who the money came from / went to, and what earned it. Names only (data minimisation).
             'counterparty' => ['sometimes', 'nullable', 'string', 'max:128'],
             'activity' => ['sometimes', 'nullable', 'string', 'max:64'],
+            'purpose' => ['sometimes', 'nullable', 'string', 'max:128'],
         ];
     }
 
@@ -67,6 +68,7 @@ abstract class PostTransactionRequest extends FormRequest
             idempotencyKey: $this->header('Idempotency-Key'),
             counterpartyName: $this->validated('counterparty'),
             activity: $this->validated('activity'),
+            purpose: $this->validated('purpose'),
             debtAccountId: $this->validated('debt_account_id'),
         );
     }

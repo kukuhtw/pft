@@ -305,6 +305,7 @@ final class TransactionService
                 'merchant_id' => $merchant?->id,
                 'counterparty_id' => $counterparty?->id,
                 'activity' => $meaning->activity,
+                'purpose' => $meaning->purpose,
                 'description' => $input->description,
                 'reference_number' => $input->referenceNumber,
                 'payment_method' => $input->paymentMethod,

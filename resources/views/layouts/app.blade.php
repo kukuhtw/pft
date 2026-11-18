@@ -12,7 +12,7 @@
         <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
             <a href="{{ route('dashboard') }}" wire:navigate class="font-semibold tracking-tight">💰 {{ config('app.name') }}</a>
             <nav class="order-last flex w-full min-w-0 items-center gap-1 overflow-x-auto text-sm whitespace-nowrap md:order-none md:w-auto">
-                @foreach ([['dashboard', 'Dashboard'], ['transactions', 'Transaksi'], ['budgets', 'Budget'], ['reports', 'Laporan'], ['accounts', 'Akun'], ['categories', 'Kategori'], ['telegram.guide', 'Telegram']] as [$route, $label])
+                @foreach ([['dashboard', 'Dashboard'], ['transactions', 'Transaksi'], ['debts', 'Hutang'], ['budgets', 'Budget'], ['reports', 'Laporan'], ['accounts', 'Akun'], ['categories', 'Kategori'], ['telegram.guide', 'Telegram']] as [$route, $label])
                     <a href="{{ route($route) }}" wire:navigate
                        @class(['rounded-md px-3 py-1.5', 'bg-slate-900 text-white' => request()->routeIs($route), 'text-slate-600 hover:bg-slate-100' => ! request()->routeIs($route)])>{{ $label }}</a>
                 @endforeach
